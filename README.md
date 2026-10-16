@@ -1,92 +1,79 @@
-# Nebula Launcher
+# 🌌 Nebula Launcher
 
-Lanzador de Minecraft Java de código abierto para Linux y Windows, hecho con Tauri 2 (Rust) y una interfaz web nativa sin dependencias de Node.
+<img src="docs/screenshot-home.png" alt="Nebula Launcher" width="960">
 
+Lanzador de Minecraft Java **de código abierto** para Linux y Windows, hecho con **Tauri 2 (Rust)** y una interfaz web nativa sin Node. Ligero (~10 MB de instalador, RAM mínima), bonito y completo.
+
+[![Última versión](https://img.shields.io/github/v/release/mclovin552/nebula-launcher?label=versi%C3%B3n&color=violet)](https://github.com/mclovin552/nebula-launcher/releases/latest)
+[![Descargas](https://img.shields.io/github/downloads/mclovin552/nebula-launcher/total?color=success&label=descargas)](https://github.com/mclovin552/nebula-launcher/releases)
 [![Licencia](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
+[![Plataformas](https://img.shields.io/badge/plataformas-Windows%20%7C%20Linux-cyan.svg)](#instalaci%C3%B3n)
 
-## Funciones
+> ✨ Tema **Aurora**: interfaz de vidrio con degradados violeta/cian, animaciones fluidas, Modrinth integrado, backups automáticos, estadísticas de juego y más.
 
-- **Gestión de instancias** completas: vanilla, Fabric, Quilt, Forge y NeoForge, con grupos, colores, memoria y Java por instancia.
-- **Instalación de contenido desde Modrinth**: mods, modpacks (`.mrpack`), texturas y shaders, con resolución automática de dependencias.
-- **⚡ Optimizar**: botón que instala de golpe los mods de rendimiento compatibles (Sodium, Lithium, Embeddium, ModernFix, etc.).
-- **Verificar y reparar**: comprobación SHA-1 de todos los archivos del juego y re-descarga de los dañados.
-- **Estado de servidores**: ping real (MOTD, jugadores, latencia) desde la pestaña de Servidores.
-- **Entrada rápida a servidores** al iniciar el juego (quickPlay).
-- **Skins y capas**: armario de skins con vista previa, cambio por la API oficial para cuentas Microsoft y skins/capas locales con CustomSkinLoader para cuentas sin conexión.
-- **Importación**: instancias de Prism Launcher/MultiMC (`.zip`) y modpacks de Modrinth (`.mrpack`).
-- **Exportación** de instancias como modpack `.mrpack`.
-- **Iconos personalizados** por instancia.
-- **Discord Rich Presence** opcional.
-- **Cuentas offline** y Microsoft (login OAuth por localhost; sin pedir Client ID).
-- **Bandeja del sistema**: la ventana se minimiza a la bandeja al cerrarla (opcional).
-- **Copias de seguridad de mundos**, consola integrada con detección de errores comunes y actualizador de launcher opcional.
+---
 
-## Instalación
+## 📸 Vistazo rápido
 
-### Linux
+| Inicio | Novedades de Minecraft |
+|---|---|
+| <img src="docs/screenshot-home.png" alt="Inicio" width="480"> | <img src="docs/screenshot-news.png" alt="Novedades" width="480"> |
 
-Descarga el `.AppImage`, `.deb` o `.rpm` desde la sección **Releases** y ejecuta:
+## 🚀 Funciones
 
-```bash
-chmod +x nebula-launcher_*.AppImage
-./nebula-launcher_*.AppImage
-```
+- **Gestión de instancias**: vanilla, Fabric, Quilt, Forge y NeoForge, con grupos, colores, memoria y Java por instancia (más presets de JVM).
+- **Modrinth integrado**: mods, modpacks (`.mrpack`), texturas y shaders, con resolución automática de dependencias y actualización de modpacks con un clic.
+- **⚡ Optimizar**: instala de golpe los mods de rendimiento compatibles (Sodium, Lithium, Embeddium, ModernFix…).
+- **Verificar y reparar**: comprobación SHA-1 de los archivos del juego y re-descarga de dañados.
+- **Servidores**: ping real (MOTD, jugadores, latencia) y lista de servidores populares.
+- **Skins y capas**: armario con vista 3D, cambio por API oficial y skins sin conexión vía CustomSkinLoader.
+- **Capturas de pantalla**: galería integrada con tus capturas del juego.
+- **Estadísticas**: tiempo de juego por instancia, favorita y totales.
+- **Backups automáticos** de mundos mientras juegas.
+- **Importación/Exportación**: instancias de Prism Launcher/MultiMC y modpacks de Modrinth; exporta como `.mrpack`.
+- **Cuentas**: Microsoft (login OAuth local, sin configurar nada) y cuentas sin conexión.
+- **Extras**: arrastrar para reordenar instancias, tema claro/oscuro, Discord Rich Presence, bandeja del sistema, consola integrada con diagnóstico de errores y sonidos de inicio.
 
-### Windows
+## 📥 Instalación
 
-Descarga el instalador `.msi` o `.exe` (NSIS) desde **Releases** y ejecútalo. Windows puede mostrar un aviso de "editor desconocido": pulsa "Más información → Ejecutar de todas formas" (es un binario sin firma, algo normal en proyectos de código abierto sin certificado).
+Descarga el instalador desde [**Releases**](https://github.com/mclovin552/nebula-launcher/releases/latest):
 
-## Compilar desde el código
+| Sistema | Archivo |
+|---|---|
+| 🐧 Linux | `.AppImage` (portátil), `.deb` (Debian/Ubuntu), `.rpm` (Fedora/openSUSE) |
+| 🪟 Windows | `.msi` (instalador) |
 
-Requisitos: Rust 1.70+.
-
-Linux (Fedora): `sudo dnf install webkit2gtk4.1-devel openssl-devel gcc librsvg2-devel libxdo-devel`
-
-Linux (Ubuntu/Debian): `sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential curl`
+### Linux (AppImage)
 
 ```bash
-git clone https://github.com/TU_USUARIO/nebula-launcher
-cd nebula-launcher/src-tauri
-cargo run --release
+chmod +x Nebula.Launcher_*_amd64.AppImage
+./Nebula.Launcher_*_amd64.AppImage
 ```
 
-Binario suelto: `target/release/nebula-launcher`.
+## 🛠️ Compilar desde el código
 
-## Generar instaladores
-
-En cada plataforma se generan sus propios paquetes:
-
-- Windows: `.msi` (WiX) y `.exe` (NSIS)
-- Linux: `.AppImage`, `.deb`, `.rpm`
-- macOS: `.app` / `.dmg` (agrega igual su job al workflow si lo quieres)
-
-Este repositorio incluye un workflow de **GitHub Actions** (`.github/workflows/release.yml`): al enviar una etiqueta `v*`, GitHub construye automáticamente los instaladores de Windows y Linux y crea un borrador de Release con todos los archivos. Solo tienes que hacer:
+Necesitas [Rust](https://rustup.rs) y las dependencias de Tauri 2:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+# Debian/Ubuntu
+sudo apt install libwebkit2gtk-4.1-dev build-essential libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+# Fedora
+sudo dnf install webkit2gtk4.1-devel gcc-c++ openssl-devel gtk3-devel libappindicator-gtk3-devel librsvg2-devel
 ```
 
-## Configuración opcional
-
-- `NEBULA_MS_CLIENT_ID`: Client ID de Azure propio para el login Microsoft (redirect `http://127.0.0.1:<puerto>/callback`). El valor interno ya viene configurado para el flujo localhost.
-- `NEBULA_DISCORD_APP_ID`: Application ID de Discord para habilitar el Rich Presence (también se puede pegar en Ajustes).
-- `update_repo`: repositorio `usuario/repo` de GitHub en Ajustes para activar el chequeo de actualizaciones del launcher.
-
-## Estructura del proyecto
-
-```
-ui/                 Interfaz (vanilla JS/CSS, sin bundler)
-src-tauri/src/      Backend Rust (Tauri 2)
-  instances.rs      Instancias y contenido
-  modrinth.rs       Búsqueda/instalación Modrinth y optimización
-  launch.rs         Proceso del juego, logs, RPC
-  accounts.rs       OAuth Microsoft (localhost) + cuentas offline
-  wardrobe.rs       Skins y capas
-  serverping.rs     Ping SLP a servidores
-  discord.rs        Discord Rich Presence vía IPC local
+```bash
+git clone https://github.com/mclovin552/nebula-launcher.git
+cd nebula-launcher
+cargo tauri build
 ```
 
-## Licencia
+## 🙏 Créditos
 
-MIT — ver [LICENSE](LICENSE).
+- [Tauri](https://tauri.app) y el ecosistema Rust
+- [Modrinth](https://modrinth.com) y su API pública
+- Inspirado en Prism Launcher y el ecosistema open source
+
+## 📄 Licencia
+
+[MIT](LICENSE) — haz lo que quieras, menciona el proyecto original.
