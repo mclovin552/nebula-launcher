@@ -142,7 +142,11 @@ pub async fn run(
 ) -> Result<(), String> {
     paths::ensure()?;
     http::reset_cancel();
-    if running.lock().map(|r| r.contains_key(&instance_id)).unwrap_or(false) {
+    if running
+        .lock()
+        .map(|r| r.contains_key(&instance_id))
+        .unwrap_or(false)
+    {
         return Err("La instancia ya está en ejecución".to_string());
     }
     let cfg = settings::load();
@@ -202,7 +206,13 @@ pub async fn run(
         .filter(|p| !p.trim().is_empty())
         .or_else(|| Some(cfg.java_path.clone()));
     let java_bin = java::ensure(major, java_override, move |d, t| {
-        emit_progress(&app_java, "java", &format!("Descargando Java {major}"), d, t)
+        emit_progress(
+            &app_java,
+            "java",
+            &format!("Descargando Java {major}"),
+            d,
+            t,
+        )
     })
     .await?;
 
@@ -227,7 +237,10 @@ pub async fn run(
     vars.insert("assets_index_name", assets.index_id.clone());
     vars.insert("auth_uuid", account.uuid.clone());
     vars.insert("auth_access_token", account.access_token.clone());
-    vars.insert("auth_session", format!("token:{}:{}", account.access_token, account.uuid));
+    vars.insert(
+        "auth_session",
+        format!("token:{}:{}", account.access_token, account.uuid),
+    );
     vars.insert("clientid", "0".to_string());
     vars.insert("auth_xuid", "0".to_string());
     let user_type = if is_ms { "msa" } else { "legacy" };
@@ -235,19 +248,31 @@ pub async fn run(
     vars.insert("user_properties", "{}".to_string());
     vars.insert(
         "version_type",
-        vjson.get("type").and_then(|t| t.as_str()).unwrap_or("release").to_string(),
+        vjson
+            .get("type")
+            .and_then(|t| t.as_str())
+            .unwrap_or("release")
+            .to_string(),
     );
     vars.insert("resolution_width", cfg.width.to_string());
     vars.insert("resolution_height", cfg.height.to_string());
-    vars.insert("natives_directory", natives_dir.to_string_lossy().to_string());
+    vars.insert(
+        "natives_directory",
+        natives_dir.to_string_lossy().to_string(),
+    );
     vars.insert("launcher_name", "NebulaLauncher".to_string());
     vars.insert("launcher_version", "1.0.0".to_string());
     vars.insert("classpath", classpath);
     vars.insert("classpath_separator", sep.to_string());
-    vars.insert("library_directory", paths::libraries().to_string_lossy().to_string());
+    vars.insert(
+        "library_directory",
+        paths::libraries().to_string_lossy().to_string(),
+    );
     vars.insert("game_assets", game_assets.to_string_lossy().to_string());
 
-    let server = server.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let server = server
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
     let supports_quick = vjson
         .get("arguments")
         .map(|a| a.to_string().contains("quickPlayMultiplayer"))
@@ -257,7 +282,10 @@ pub async fn run(
     if quick {
         let qp = game_dir.join("quickPlay");
         let _ = std::fs::create_dir_all(&qp);
-        vars.insert("quickPlayPath", qp.join("log.json").to_string_lossy().to_string());
+        vars.insert(
+            "quickPlayPath",
+            qp.join("log.json").to_string_lossy().to_string(),
+        );
         vars.insert("quickPlayMultiplayer", server.clone().unwrap_or_default());
     }
     let mut jvm: Vec<String> = vec![format!("-Xms{min_mem}M"), format!("-Xmx{max_mem}M")];
@@ -298,7 +326,9 @@ pub async fn run(
     if let Some(addr) = &server {
         if !quick {
             let (host, port) = match addr.rsplit_once(':') {
-                Some((h, p)) if p.chars().all(|c| c.is_ascii_digit()) && !p.is_empty() => (h.to_string(), p.to_string()),
+                Some((h, p)) if p.chars().all(|c| c.is_ascii_digit()) && !p.is_empty() => {
+                    (h.to_string(), p.to_string())
+                }
                 _ => (addr.clone(), "25565".to_string()),
             };
             full.push("--server".to_string());
@@ -316,7 +346,11 @@ pub async fn run(
     } else {
         tokio::process::Command::new(&java_bin)
     };
-    let env_text = format!("{}\n{}", cfg.env_vars, inst.env_vars.clone().unwrap_or_default());
+    let env_text = format!(
+        "{}\n{}",
+        cfg.env_vars,
+        inst.env_vars.clone().unwrap_or_default()
+    );
     let env_pairs = parse_env(&env_text);
     for (k, v) in &env_pairs {
         cmd.env(k, v);
@@ -351,7 +385,13 @@ pub async fn run(
         tokio::spawn(async move {
             let mut lines = BufReader::new(out).lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                let _ = app_out.emit("game-log", LogLine { instance: id.clone(), line });
+                let _ = app_out.emit(
+                    "game-log",
+                    LogLine {
+                        instance: id.clone(),
+                        line,
+                    },
+                );
             }
         });
     }
@@ -361,7 +401,13 @@ pub async fn run(
         tokio::spawn(async move {
             let mut lines = BufReader::new(err).lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                let _ = app_err.emit("game-log", LogLine { instance: id.clone(), line });
+                let _ = app_err.emit(
+                    "game-log",
+                    LogLine {
+                        instance: id.clone(),
+                        line,
+                    },
+                );
             }
         });
     }
@@ -371,8 +417,27 @@ pub async fn run(
     let post_dir = game_dir.clone();
     let post_env = env_pairs.clone();
     let started = std::time::Instant::now();
+    let alive = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let bmin = cfg.auto_backup_minutes;
+    if bmin > 0 {
+        let alive_tick = alive.clone();
+        let id_tick = instance_id.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(std::time::Duration::from_secs(bmin as u64 * 60)).await;
+                if !alive_tick.load(std::sync::atomic::Ordering::Relaxed) {
+                    break;
+                }
+                if instances::backup_worlds(&id_tick).is_ok() {
+                    instances::keep_last_backups(&id_tick, 5);
+                }
+            }
+        });
+    }
+    let alive_wait = alive.clone();
     tokio::spawn(async move {
         let status = child.wait().await;
+        alive_wait.store(false, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut r) = running.lock() {
             r.remove(&id_wait);
         }
@@ -382,7 +447,13 @@ pub async fn run(
             let _ = run_shell(&post_exit, &post_dir, &post_env).await;
         }
         let code = status.ok().and_then(|s| s.code());
-        let _ = app_wait.emit("game-exit", ExitEvent { instance: id_wait, code });
+        let _ = app_wait.emit(
+            "game-exit",
+            ExitEvent {
+                instance: id_wait,
+                code,
+            },
+        );
     });
     emit_progress(&app, "running", "Minecraft en ejecución", 1, 1);
     Ok(())
@@ -407,7 +478,9 @@ mod tests {
 
     #[test]
     fn env_parser_skips_invalid_lines() {
-        let parsed = parse_env("# nota\nMESA_GLTHREAD=true\n\nmalo clave=1\n__GL_THREADED_OPTIMIZATIONS = 1\n");
+        let parsed = parse_env(
+            "# nota\nMESA_GLTHREAD=true\n\nmalo clave=1\n__GL_THREADED_OPTIMIZATIONS = 1\n",
+        );
         assert_eq!(
             parsed,
             vec![
@@ -421,6 +494,9 @@ mod tests {
     fn placeholders_are_replaced() {
         let mut vars: HashMap<&str, String> = HashMap::new();
         vars.insert("auth_player_name", "Steve".to_string());
-        assert_eq!(subst("--username ${auth_player_name}", &vars), "--username Steve");
+        assert_eq!(
+            subst("--username ${auth_player_name}", &vars),
+            "--username Steve"
+        );
     }
 }

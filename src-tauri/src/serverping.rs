@@ -75,6 +75,9 @@ fn motd_text(v: Option<&Value>) -> String {
     let mut clean = String::new();
     let mut it = out.chars();
     while let Some(c) = it.next() {
+        if clean.len() >= 300 {
+            break;
+        }
         if c == '\u{00a7}' {
             let _ = it.next();
             continue;
@@ -87,7 +90,12 @@ fn motd_text(v: Option<&Value>) -> String {
 pub async fn ping(address: &str) -> Result<ServerStatus, String> {
     let address = address.trim();
     let (host, port) = match address.rsplit_once(':') {
-        Some((h, p)) if !h.is_empty() && !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()) && p.parse::<u16>().is_ok() => {
+        Some((h, p))
+            if !h.is_empty()
+                && !p.is_empty()
+                && p.chars().all(|c| c.is_ascii_digit())
+                && p.parse::<u16>().is_ok() =>
+        {
             (h.to_string(), p.parse::<u16>().unwrap_or(25565))
         }
         _ => (address.to_string(), 25565u16),
@@ -111,7 +119,10 @@ pub async fn ping(address: &str) -> Result<ServerStatus, String> {
         packet.extend(body);
         stream.write_all(&packet).await.map_err(|e| e.to_string())?;
 
-        stream.write_all(&[0x01, 0x00]).await.map_err(|e| e.to_string())?;
+        stream
+            .write_all(&[0x01, 0x00])
+            .await
+            .map_err(|e| e.to_string())?;
 
         let _len = read_varint(&mut stream).await?;
         let id = read_varint(&mut stream).await?;
@@ -119,11 +130,14 @@ pub async fn ping(address: &str) -> Result<ServerStatus, String> {
             return Err("Respuesta de estado inesperada".to_string());
         }
         let slen = read_varint(&mut stream).await?;
-        if slen > 8 * 1024 * 1024 {
+        if slen > 1024 * 1024 {
             return Err("Respuesta demasiado grande".to_string());
         }
         let mut buf = vec![0u8; slen as usize];
-        stream.read_exact(&mut buf).await.map_err(|e| e.to_string())?;
+        stream
+            .read_exact(&mut buf)
+            .await
+            .map_err(|e| e.to_string())?;
         Ok::<String, String>(String::from_utf8_lossy(&buf).to_string())
     };
 
@@ -136,8 +150,14 @@ pub async fn ping(address: &str) -> Result<ServerStatus, String> {
     Ok(ServerStatus {
         online: true,
         motd: motd_text(v.get("description")),
-        players_online: v.pointer("/players/online").and_then(|x| x.as_u64()).unwrap_or(0),
-        players_max: v.pointer("/players/max").and_then(|x| x.as_u64()).unwrap_or(0),
+        players_online: v
+            .pointer("/players/online")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0),
+        players_max: v
+            .pointer("/players/max")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0),
         version: v
             .pointer("/version/name")
             .and_then(|x| x.as_str())

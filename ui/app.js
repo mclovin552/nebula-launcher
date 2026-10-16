@@ -50,8 +50,25 @@ const CONTENT_TABS = [
   ['shaderpacks', 'Shaders'],
   ['saves', 'Mundos'],
   ['servers', 'Servidores'],
-  ['backups', 'Copias']
+  ['backups', 'Copias'],
+  ['screens', 'Capturas']
 ];
+
+const POPULAR_SERVERS = [
+  ['Hypixel', 'hypixel.net'],
+  ['CubeCraft', 'mco.cubecraft.net'],
+  ['BlocksMC', 'blocksmc.com'],
+  ['MineVille', 'play.mineville.org'],
+  ['Purple Prison', 'purpleprison.net'],
+  ['Minewind', 'minewind.com'],
+  ['2b2t', '2b2t.org']
+];
+
+const JVM_PRESETS = {
+  'Preset vanilla (estable)': '',
+  'Preset rendimiento (G1GC)': '-XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1MaxNewSizePercent=40 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M',
+  'Preset memoria baja': '-Xms512M -XX:MaxHeapFreeRatio=30 -XX:MinHeapFreeRatio=10 -XX:+UseSerialGC'
+};
 
 const LOADERS = [
   ['vanilla', 'Vanilla'],
@@ -151,12 +168,17 @@ const EN = {
   'Skins y capas': 'Skins and capes', 'Aplicar': 'Apply', 'Poner': 'Put on', 'Quitar': 'Remove', 'ACTIVA': 'ACTIVE',
   'Capa activada': 'Cape enabled', 'Capa quitada': 'Cape removed', 'Nombre': 'Name', 'opcional': 'optional',
   'Skin guardada en el armario': 'Skin saved to the wardrobe', 'Skin aplicada a tu cuenta': 'Skin applied to your account',
+  'Servidores populares': 'Popular servers', 'Actualizar modpack': 'Update modpack', 'Modpack actualizado': 'Modpack updated',
+  'Usar como icono': 'Use as icon', 'Captura puesta como icono de la instancia': 'Screenshot set as instance icon',
+  'Añadir': 'Add', 'Preset colocado; pulsa Guardar para aplicarlo': 'Preset entered; press Save to apply',
+  'Esta instancia no guarda el modpack de Modrinth de origen': 'This instance does not store its source Modrinth modpack',
+  'Ese servidor ya está en la lista': 'That server is already in the list',
+  'Acerca de Nebula': 'About Nebula', 'Modpack de Modrinth actualizado': 'Modrinth modpack updated',
   'Capas de tu cuenta': 'Your account capes', 'Capa': 'Cape',
   'Poner skin': 'Apply skin', 'Elegir capa (PNG)': 'Choose cape (PNG)', 'Skin local': 'Local skin',
   'Instancia': 'Instance'
 };
 const EN_KEYS = Object.keys(EN).sort((a, b) => b.length - a.length);
-
 function tr(str) {
   if (!S.settings || S.settings.language !== 'en') return str;
   const stash = [];
@@ -183,6 +205,33 @@ function toast(msg, kind = '') {
   el.textContent = tr(msg);
   $('#toasts').appendChild(el);
   setTimeout(() => el.remove(), kind === 'err' ? 8000 : 4000);
+}
+
+function applyTheme() {
+  document.body.classList.toggle('light', (S.settings && S.settings.theme) === 'light');
+}
+
+let AC = null;
+function beep(freq = 520, dur = 0.12, type = 'sine', vol = 0.05) {
+  if (localStorage.getItem('nebula-sound') === '0') return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const o = AC.createOscillator();
+    const g = AC.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g);
+    g.connect(AC.destination);
+    o.start();
+    o.stop(AC.currentTime + dur);
+  } catch (_) {}
+}
+function playSound(name) {
+  if (name === 'start') { beep(392, 0.1); setTimeout(() => beep(523, 0.14), 110); }
+  else if (name === 'exit') { beep(330, 0.14, 'sine', 0.04); setTimeout(() => beep(262, 0.2), 130); }
+  else if (name === 'done') beep(660, 0.18, 'triangle', 0.04);
+  else if (name === 'err') beep(196, 0.25, 'square', 0.03);
 }
 
 function fmtNum(n) {
@@ -233,6 +282,8 @@ function renderView() {
   const r = { home: viewHome, instances: viewInstances, discover: viewDiscover, accounts: viewAccounts, console: viewConsole, settings: viewSettings }[S.view];
   el.innerHTML = tr(r());
   el.scrollTop = 0;
+  const top = $('#to-top');
+  if (top) top.classList.remove('show');
   if (S.view === 'home') {
     drawHero();
     loadNews();
@@ -244,24 +295,41 @@ function renderView() {
 function viewHome() {
   const inst = currentInstance();
   const playing = inst && S.running.has(inst.id);
+  const h = new Date().getHours();
+  const greet = h < 6 ? 'Buenas noches' : h < 12 ? 'Buenos días' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
+  const a = activeAccount();
+  const saludo = a && inst
+    ? `<span class="chip">${greet}, ${esc(a.name)} 👋</span>`
+    : '';
   const hero = inst
     ? `<div class="hero-title stack" style="gap:10px">
-         <div class="row wrap"><span class="chip">Minecraft ${esc(inst.mc_version)}</span><span class="chip">${LOADER_NAME[inst.loader] || esc(inst.loader)}${inst.loader_version ? ' ' + esc(inst.loader_version) : ''}</span></div>
+         <div class="row wrap">${saludo}<span class="chip">Minecraft ${esc(inst.mc_version)}</span><span class="chip">${LOADER_NAME[inst.loader] || esc(inst.loader)}${inst.loader_version ? ' ' + esc(inst.loader_version) : ''}</span>${inst.last_played ? '<span class="chip">⏳ Continuar donde lo dejaste</span>' : ''}</div>
          <h1>${esc(inst.name)}</h1>
        </div>
        <button class="btn primary play" data-act="${playing ? 'stop' : 'play'}" data-id="${esc(inst.id)}">${ic(playing ? 'stop' : 'play')}${playing ? 'Detener' : 'Jugar'}</button>`
     : `<div class="hero-title stack" style="gap:10px"><h1>Tu primera instancia</h1><span>Elige una versión y un cargador para empezar a jugar.</span></div>
        <button class="btn primary play" data-act="new-instance">${ic('plus')}Crear instancia</button>`;
   const recents = S.instances.slice(0, 6).map((i) => `
-    <div class="card pick ${currentInstance() && currentInstance().id === i.id ? 'sel' : ''}" data-act="pick" data-id="${esc(i.id)}">
-      ${i.icon ? `<div class="inst-icon" style="border-top-color:var(--amethyst)"><img src="${esc(i.icon)}" alt=""></div>` : '<div class="inst-top a' + (i.accent % 6) + '"></div>'}
+    <div class="card pick with-cover ${currentInstance() && currentInstance().id === i.id ? 'sel' : ''}" data-act="pick" data-id="${esc(i.id)}">
+      ${i.icon ? `<img class="cover" src="${esc(i.icon)}" alt="">` : '<div class="inst-top a' + (i.accent % 6) + '"></div>'}
       <h3 class="ellipsis">${esc(i.name)}</h3>
-      <span class="muted">${esc(i.mc_version)} · ${LOADER_NAME[i.loader] || esc(i.loader)}</span>
+      <span class="muted">${esc(i.mc_version)} · ${LOADER_NAME[i.loader] || esc(i.loader)}${i.playtime ? ' ⏱ ' + fmtPlaytime(i.playtime) : ''}</span>
     </div>`).join('');
   return `
-    <div class="hero"><canvas id="hero-canvas"></canvas><div class="hero-body">${hero}</div></div>
+    <div class="hero ${inst && inst.icon ? 'with-cover' : ''}">${inst && inst.icon ? `<img class="hero-cover" src="${esc(inst.icon)}" alt="">` : ''}<canvas id="hero-canvas"></canvas><div class="sparkle"></div><div class="hero-body">${hero}</div></div>
     ${S.instances.length ? `<div class="section"><div class="row between"><h2>Instancias recientes</h2><button class="btn small ghost" data-act="nav" data-view="instances">Ver todas</button></div><div class="grid">${recents}</div></div>` : ''}
-    <div class="section"><div class="row between"><h2>Novedades de Minecraft</h2></div><div id="news" class="news"><div class="muted">Cargando novedades…</div></div></div>`;
+    ${S.instances.length ? heroStats() : ''}
+    <div class="section"><div class="row between"><h2>Novedades de Minecraft</h2></div><div id="news" class="news"><div class="skeleton sk-card"></div><div class="skeleton sk-card"></div><div class="skeleton sk-card"></div><div class="skeleton sk-card"></div></div></div>`;
+}
+
+function heroStats() {
+  const fav = S.instances.reduce((x, y) => ((y.playtime || 0) > (x ? x.playtime : -1) ? y : x), null);
+  const totalSecs = S.instances.reduce((n, i) => n + (i.playtime || 0), 0);
+  return `<div class="panel row wrap" style="margin-top:16px;gap:22px">
+    <span>🏆 <b>${fmtPlaytime(totalSecs)}</b> <span class="muted">jugadas en total</span></span>
+    ${fav ? `<span>⭐ <b>${esc(fav.name)}</b> <span class="muted">es tu favorita</span></span>` : ''}
+    <span>📦 <b>${S.instances.length}</b> <span class="muted">${S.instances.length === 1 ? 'instancia' : 'instancias'}</span></span>
+  </div>`;
 }
 
 function drawHero() {
@@ -342,9 +410,9 @@ function fmtPlaytime(sec) {
 
 function instanceCard(i) {
   const playing = S.running.has(i.id);
-  return `<div class="card">
-    ${i.icon ? `<div class="inst-icon"><img src="${esc(i.icon)}" alt=""></div>` : `<div class="inst-top a${i.accent % 6}"></div>`}
-    <div><h3 class="ellipsis">${esc(i.name)}</h3><span class="muted">${esc(i.mc_version)} · ${LOADER_NAME[i.loader] || esc(i.loader)}${i.loader_version ? ' ' + esc(i.loader_version.replace(i.mc_version + '-', '')) : ''}</span><br><span class="muted" style="font-size:12.5px">Tiempo jugado: ${fmtPlaytime(i.playtime)}</span></div>
+  return `<div class="card with-cover ${playing ? 'playing' : ''}" draggable="true" data-id="${esc(i.id)}">
+    ${i.icon ? `<img class="cover" src="${esc(i.icon)}" alt="">` : `<div class="inst-top a${i.accent % 6}"></div>`}
+    <div><h3 class="ellipsis">${esc(i.name)}</h3><span class="muted">${esc(i.mc_version)} · ${LOADER_NAME[i.loader] || esc(i.loader)}${i.loader_version ? ' ' + esc(i.loader_version.replace(i.mc_version + '-', '')) : ''}</span>${playing ? '<span class="chip" style="margin-left:6px">▶ EN JUEGO</span>' : ''}<br><span class="muted" style="font-size:12.5px">Tiempo jugado: ${fmtPlaytime(i.playtime)}</span></div>
     <div class="row wrap">
       <button class="btn small primary" data-act="${playing ? 'stop' : 'play'}" data-id="${esc(i.id)}">${ic(playing ? 'stop' : 'play')}${playing ? 'Detener' : 'Jugar'}</button>
       <button class="btn small" data-act="content" data-id="${esc(i.id)}">${ic('list')}Contenido</button>
@@ -364,7 +432,17 @@ function viewInstances() {
     const items = S.instances.filter((i) => (i.group || '') === g);
     return `${groups.length > 1 ? `<h2 style="margin:22px 0 12px">${esc(g || 'Sin grupo')}</h2>` : ''}<div class="grid">${items.map(instanceCard).join('')}</div>`;
   }).join('');
+  const fav = S.instances.reduce((a, b) => ((b.playtime || 0) > (a ? a.playtime : -1) ? b : a), null);
+  const totalSecs = S.instances.reduce((n, i) => n + (i.playtime || 0), 0);
+  const stats = S.instances.length
+    ? `<div class="panel row wrap" style="margin-bottom:16px;gap:18px">
+        <span>${ic('play')} <b>${S.instances.length}</b> <span class="muted">${S.instances.length === 1 ? 'instancia' : 'instancias'}</span></span>
+        <span>⏱ <b>${fmtPlaytime(totalSecs)}</b> <span class="muted">en total</span></span>
+        ${fav && (fav.playtime || 0) > 0 ? `<span>⭐ <b>${esc(fav.name)}</b> <span class="muted">${fmtPlaytime(fav.playtime)}</span></span>` : ''}
+      </div>`
+    : '';
   return `<div class="row between wrap" style="margin-bottom:20px"><h1>Instancias</h1><div class="row"><button class="btn" data-act="import-instance">${ic('down')}Importar instancia</button><button class="btn" data-act="import-pack">${ic('down')}Importar modpack</button><button class="btn primary" data-act="new-instance">${ic('plus')}Nueva instancia</button></div></div>
+    ${stats}
     ${S.instances.length ? body : `<div class="empty"><h3>Aún no tienes instancias</h3><p>Cada instancia tiene sus propios mods, mundos y ajustes.</p><button class="btn primary" data-act="new-instance">${ic('plus')}Crear instancia</button></div>`}`;
 }
 
@@ -388,7 +466,7 @@ function viewDiscover() {
 function discoverResults() {
   const d = S.discover;
   if (d.error) return `<div class="empty"><p>${esc(d.error)}</p></div>`;
-  if (!d.items.length) return d.loading ? '<div class="muted">Buscando…</div>' : '<div class="empty"><p>Sin resultados. Prueba con otra búsqueda.</p></div>';
+  if (!d.items.length) return d.loading ? `<div class="news" style="grid-auto-flow:row">${'<div class="card mod skeleton sk-big"></div>'.repeat(4)}</div>` : '<div class="empty"><p>Sin resultados. Prueba con otra búsqueda.</p></div>';
   const cards = d.items.map((it) => `
     <div class="card mod">
       ${it.icon ? `<img src="${esc(it.icon)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph'}))">` : '<div class="ph"></div>'}
@@ -492,12 +570,14 @@ function viewSettings() {
         <h2>Java y juego</h2>
         <label class="field"><span>Ruta de Java (vacío = automática, se descarga si hace falta)</span><input type="text" id="s-java" value="${esc(s.java_path)}" placeholder="/usr/lib/jvm/java-21/bin/java"></label>
         <label class="field"><span>Argumentos de JVM</span><textarea id="s-jvm" placeholder="-XX:+UseG1GC">${esc(s.jvm_args)}</textarea></label>
+        <div class="row wrap">${Object.keys(JVM_PRESETS).map((p) => `<button class="btn small" data-act="jvm-preset" data-target="s-jvm" data-preset="${esc(p)}">${esc(p)}</button>`).join('')}</div>
         <label class="field"><span>Comando envoltorio (por ejemplo gamemoderun o mangohud)</span><input type="text" id="s-wrap" value="${esc(s.wrapper)}"></label>
         <div class="two">
           <label class="field"><span>Ancho de ventana</span><input type="number" id="s-w" min="320" value="${s.width}"></label>
           <label class="field"><span>Alto de ventana</span><input type="number" id="s-h" min="240" value="${s.height}"></label>
         </div>
         <label class="field"><span>Descargas simultáneas</span><input type="number" id="s-conc" min="1" max="128" value="${s.concurrency}"></label>
+        <label class="field"><span>Copia de mundos automática mientras juegas (minutos, 0 = apagada)</span><input type="number" id="s-backup" min="0" max="240" value="${s.auto_backup_minutes || 0}"></label>
       </div>
       <div class="panel stack">
         <h2>Linux</h2>
@@ -508,6 +588,8 @@ function viewSettings() {
       <div class="panel stack">
         <h2>Aplicación</h2>
         <label class="field"><span>Idioma</span><select id="s-lang"><option value="es" ${s.language === 'es' ? 'selected' : ''}>Español</option><option value="en" ${s.language === 'en' ? 'selected' : ''}>Inglés</option></select></label>
+        <label class="field"><span>Tema</span><select id="s-theme"><option value="dark" ${s.theme !== 'light' ? 'selected' : ''}>Oscuro</option><option value="light" ${s.theme === 'light' ? 'selected' : ''}>Claro</option></select></label>
+        <label class="row"><input type="checkbox" id="s-sound" ${localStorage.getItem('nebula-sound') !== '0' ? 'checked' : ''}> <span class="muted">Sonidos del launcher (inicio y fin de partida)</span></label>
         <label class="field"><span>Repositorio de actualizaciones (usuario/repo en GitHub)</span><input type="text" id="s-repo" value="${esc(s.update_repo)}" placeholder="usuario/nebula-launcher"></label>
         <label class="row"><input type="checkbox" id="s-tray" ${s.close_to_tray !== false ? 'checked' : ''}> <span class="muted">Minimizar a la bandeja del sistema al cerrar la ventana</span></label>
       </div>
@@ -521,6 +603,11 @@ function viewSettings() {
         <p class="muted">El inicio de sesión con Microsoft se hace ahora a través de un servidor local (localhost), por lo que no hace falta configurar ningún Client ID de Azure.</p>
         <p class="muted">Curse Forge ha sido desactivado en este lanzador.</p>
       </div>
+      <div class="panel stack">
+        <h2>Acerca de</h2>
+        <p class="muted">Nebula Launcher — lanzador de Minecraft Java de código abierto (MIT).</p>
+        <div class="row wrap"><button class="btn small" data-act="about">Acerca de Nebula</button></div>
+      </div>
       <div class="row"><button class="btn primary" data-act="save-settings">Guardar cambios</button><button class="btn" data-act="folder-root">${ic('folder')}Abrir carpeta de datos</button></div>
     </div>`;
 }
@@ -530,7 +617,59 @@ function bindSettings() {
   const min = $('#s-min');
   max.oninput = () => ($('#s-max-val').textContent = max.value + ' MB');
   min.oninput = () => ($('#s-min-val').textContent = min.value + ' MB');
+  const snd = $('#s-sound');
+  if (snd) snd.onchange = () => localStorage.setItem('nebula-sound', snd.checked ? '1' : '0');
+  const thm = $('#s-theme');
+  if (thm) thm.onchange = () => {
+    const v = thm.value === 'light' ? 'light' : 'dark';
+    applyTheme();
+    document.body.classList.toggle('theme-preview-light', v === 'light');
+  };
 }
+
+const scrollable = () => document.getElementById('view');
+document.addEventListener('keydown', (e) => {
+  const t = e.target;
+  if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+  const v = scrollable();
+  if (!v) return;
+  const step = 70;
+  if (e.key === 'ArrowDown' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) {
+    e.preventDefault();
+    v.scrollBy({ top: e.key !== 'ArrowDown' ? 320 : step, behavior: 'smooth' });
+  } else if (e.key === 'ArrowUp' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) {
+    e.preventDefault();
+    v.scrollBy({ top: e.key !== 'ArrowUp' ? -320 : -step, behavior: 'smooth' });
+  } else if (e.key === 'Home') {
+    e.preventDefault();
+    v.scrollTo({ top: 0, behavior: 'smooth' });
+  } else if (e.key === 'End') {
+    e.preventDefault();
+    v.scrollTo({ top: v.scrollHeight, behavior: 'smooth' });
+  }
+});
+
+let panScroll = null;
+document.addEventListener('mousedown', (e) => {
+  if (e.button !== 1) return;
+  const v = scrollable();
+  if (!v || !v.contains(e.target)) return;
+  e.preventDefault();
+  panScroll = { y: e.clientY, top: v.scrollTop, view: v };
+  v.classList.add('panning');
+});
+document.addEventListener('mousemove', (e) => {
+  if (!panScroll) return;
+  panScroll.view.scrollTop = panScroll.top - (e.clientY - panScroll.y);
+});
+const endPan = () => {
+  if (panScroll) {
+    panScroll.view.classList.remove('panning');
+    panScroll = null;
+  }
+};
+document.addEventListener('mouseup', endPan);
+document.addEventListener('auxclick', (e) => { if (e.button === 1) e.preventDefault(); });
 
 function showModal(html, wide = false) {
   const m = $('#modal');
@@ -624,6 +763,7 @@ function openEdit(id) {
         ${i.icon ? `<img class="icon-preview" src="${esc(i.icon)}" alt="">` : '<div class="icon-preview"></div>'}
         <div class="row" id="e-icon-btns" data-id="${esc(id)}"><button class="btn small" data-act="icon-pick" data-id="${esc(id)}">Cambiar icono (PNG)</button><button class="btn small" data-act="icon-remove" data-id="${esc(id)}" ${i.icon ? '' : 'disabled'}>Quitar icono</button></div>
       </div>
+      <span class="chip" id="e-java-chip">⏳ Comprobando versión de Java…</span>
       <label class="field"><span>Nombre</span><input type="text" id="e-name" maxlength="40" value="${esc(i.name)}"></label>
       <div class="two">
         <label class="field"><span>Grupo</span><input type="text" id="e-group" maxlength="40" value="${esc(i.group || '')}" placeholder="Supervivencia"></label>
@@ -632,9 +772,17 @@ function openEdit(id) {
       <label class="field"><span>Memoria máxima en MB (vacío = global)</span><input type="number" id="e-mem" min="512" step="256" value="${i.memory_mb || ''}"></label>
       <label class="field"><span>Ruta de Java (vacío = global)</span><input type="text" id="e-java" value="${esc(i.java_path || '')}"></label>
       <label class="field"><span>Argumentos de JVM adicionales</span><textarea id="e-jvm">${esc(i.jvm_args || '')}</textarea></label>
+      <div class="row wrap">${Object.keys(JVM_PRESETS).map((p) => `<button class="btn small" data-act="jvm-preset" data-target="e-jvm" data-preset="${esc(p)}">${esc(p)}</button>`).join('')}</div>
       <label class="field"><span>Variables de entorno de la instancia</span><textarea id="e-env" placeholder="MESA_GLTHREAD=true">${esc(i.env_vars || '')}</textarea></label>
     </div>
     <footer><button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="edit-submit" data-id="${esc(id)}">Guardar</button></footer>`);
+  api('java_needed', { id }, true).then((mj) => {
+    const chip = $('#e-java-chip');
+    if (chip && mj) chip.textContent = `☕ Requiere Java ${mj} (se descarga automáticamente si falta)`;
+  }).catch(() => {
+    const chip = $('#e-java-chip');
+    if (chip) chip.remove();
+  });
 }
 
 async function openContent(id, tab) {
@@ -647,7 +795,7 @@ async function openContent(id, tab) {
   const t = S.content.tab;
   const inst = S.instances.find((i) => i.id === id);
   let items = [];
-  if (t !== 'servers') {
+  if (t !== 'servers' && t !== 'screens') {
     try {
       items = await api('list_content', { id, kind: t });
     } catch (_) {
@@ -657,7 +805,7 @@ async function openContent(id, tab) {
   S.content.items = items;
   const tabs = CONTENT_TABS.map(([k, l]) => `<button class="tab ${t === k ? 'on' : ''}" data-act="ctab" data-tab="${k}">${l}</button>`).join('');
   let toolbar = '';
-  if (t === 'mods') toolbar = `<button class="btn small primary" data-act="optimize" data-id="${esc(id)}">⚡Optimizar</button><button class="btn small" data-act="add-files">${ic('plus')}Añadir archivo</button><button class="btn small" data-act="check-updates">${ic('refresh')}Buscar actualizaciones</button>`;
+  if (t === 'mods') toolbar = `<button class="btn small primary" data-act="optimize" data-id="${esc(id)}">⚡Optimizar</button><button class="btn small" data-act="add-files">${ic('plus')}Añadir archivo</button><button class="btn small" data-act="check-updates">${ic('refresh')}Buscar actualizaciones</button>${inst && inst.pack_project ? `<button class="btn small" data-act="mp-refresh" data-id="${esc(id)}">${ic('refresh')}Actualizar modpack</button>` : ''}`;
   else if (t === 'resourcepacks' || t === 'shaderpacks') toolbar = `<button class="btn small" data-act="add-files">${ic('plus')}Añadir archivo</button>`;
   else if (t === 'saves' || t === 'backups') toolbar = `<button class="btn small" data-act="backup">${ic('copy')}Crear copia ahora</button>`;
   const ups = S.content.updates;
@@ -671,8 +819,10 @@ async function openContent(id, tab) {
     const servers = (inst && inst.servers) || [];
     const addr = (sv) => String(sv.address).replace(/"/g, '&quot;');
     body = `${servers.length ? servers.map((sv, n) => `<div class="item"><span class="srv-dot" id="srvdot-${n}" title=""></span><div class="grow"><div class="ellipsis">${esc(sv.name)}<span class="muted srv-info" id="srvinfo-${n}" style="font-size:12px;margin-left:8px"></span></div><span class="muted ellipsis" style="font-size:12.5px;display:block">${esc(sv.address)}</span></div><button class="btn small primary" data-act="play-server" data-address="${addr(sv)}">${ic('play')}Entrar</button><button class="icon-btn" aria-label="Eliminar" data-act="sv-del" data-n="${n}">${ic('trash')}</button></div>`).join('') : '<div class="empty"><p>Aún no hay servidores. Añade uno para entrar directo al iniciar.</p></div>'}
-      <div class="row wrap" style="margin-top:6px"><input type="text" id="sv-name" placeholder="Nombre del servidor" style="flex:1;min-width:140px"><input type="text" id="sv-addr" placeholder="Dirección del servidor" style="flex:2;min-width:180px"><button class="btn" data-act="sv-add">${ic('plus')}Añadir</button><button class="btn small" data-act="sv-refresh">${ic('refresh')}Actualizar estado</button></div>`;
+      <div class="row wrap" style="margin-top:6px"><input type="text" id="sv-name" placeholder="Nombre del servidor" style="flex:1;min-width:140px"><input type="text" id="sv-addr" placeholder="Dirección del servidor" style="flex:2;min-width:180px"><button class="btn" data-act="sv-add">${ic('plus')}Añadir</button><button class="btn small" data-act="sv-refresh">${ic('refresh')}Actualizar estado</button><button class="btn small" data-act="srv-popular">⭐ Servidores populares</button></div>`;
     setTimeout(() => fetchServerStatuses(servers), 30);
+  } else if (t === 'screens') {
+    body = items.length ? `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">${items.map((it) => `<div class="card mod" style="padding:8px"><img src="${esc(it.thumb)}" alt="" style="width:100%;border-radius:8px" loading="lazy"><div class="stack" style="gap:6px"><span class="muted" style="font-size:12px">${new Date((it.when || 0) * 1000).toLocaleString()}</span><button class="btn small" data-act="shot-icon" data-id="${esc(id)}" data-name="${esc(it.name)}">Usar como icono</button></div></div>`).join('')}</div>` : '<div class="empty"><p>No hay capturas todavía. Las capturas aparecen aquí cuando las haces dentro del juego (F2).</p></div>';
   } else if (t === 'backups') {
     body = (items.length ? items.map((it) => `<div class="item"><div class="grow"><div class="ellipsis">${esc(it.name)}</div><span class="muted" style="font-size:12.5px">${fmtSize(it.size)}</span></div><button class="btn small" data-act="restore" data-name="${esc(it.name)}">Restaurar</button><button class="icon-btn" aria-label="Eliminar" data-act="cremove" data-name="${esc(it.name)}">${ic('trash')}</button></div>`).join('') : '<div class="empty"><p>Las copias guardan todos los mundos de la instancia.</p></div>');
   } else {
@@ -689,7 +839,7 @@ async function openContent(id, tab) {
   }
   const hint = ['mods', 'resourcepacks', 'shaderpacks'].includes(t) ? '<p class="muted" style="margin-top:14px;font-size:13px">Arrastra archivos aquí para añadirlos</p>' : '';
   showModal(`${sheetHead(esc(inst ? inst.name : 'Contenido'))}
-    <div class="row between wrap"><div class="tabs" style="margin:0">${tabs}</div><div class="row wrap">${toolbar}<button class="btn small" data-act="folder" data-id="${esc(id)}" data-sub="${t === 'servers' || t === 'backups' ? '' : t}">${ic('folder')}Abrir carpeta</button></div></div>
+    <div class="row between wrap"><div class="tabs" style="margin:0">${tabs}</div><div class="row wrap">${toolbar}<button class="btn small" data-act="folder" data-id="${esc(id)}" data-sub="${t === 'servers' || t === 'backups' ? '' : t === 'screens' ? 'screenshots' : t}">${ic('folder')}Abrir carpeta</button></div></div>
     ${banner}<div class="list" style="margin-top:14px">${body}</div>${hint}`, true);
 }
 
@@ -751,37 +901,6 @@ async function showCrash(id) {
 
 let wardrobeAcc = null;
 
-function drawSkin(canvas, url) {
-  const img = new Image();
-  img.onload = () => {
-    const s = 8;
-    canvas.width = 16 * s;
-    canvas.height = 32 * s;
-    const c = canvas.getContext('2d');
-    c.imageSmoothingEnabled = false;
-    const rect = (sx, sy, w, h, dx, dy) => c.drawImage(img, sx, sy, w, h, dx * s, dy * s, w * s, h * s);
-    const flip = (sx, sy, w, h, dx, dy) => {
-      c.save();
-      c.translate((dx + w) * s, dy * s);
-      c.scale(-1, 1);
-      c.drawImage(img, sx, sy, w, h, 0, 0, w * s, h * s);
-      c.restore();
-    };
-    rect(8, 8, 8, 8, 4, 0);
-    rect(20, 20, 8, 12, 4, 8);
-    rect(44, 20, 4, 12, 0, 8);
-    rect(4, 20, 4, 12, 4, 20);
-    if (img.height >= 64) {
-      rect(36, 52, 4, 12, 12, 8);
-      rect(20, 52, 4, 12, 8, 20);
-    } else {
-      flip(44, 20, 4, 12, 12, 8);
-      flip(4, 20, 4, 12, 8, 20);
-    }
-  };
-  img.src = url;
-}
-
 function drawCape(canvas, url) {
   const img = new Image();
   img.onerror = () => { canvas.remove(); };
@@ -797,8 +916,45 @@ function drawCape(canvas, url) {
 }
 
 function paintWardrobe() {
-  document.querySelectorAll('#modal canvas[data-skin]').forEach((c) => drawSkin(c, c.dataset.skin));
   document.querySelectorAll('#modal canvas[data-cape]').forEach((c) => drawCape(c, c.dataset.cape));
+}
+
+function skinCube(url) {
+  return `<span class="skin-cube-wrap"><span class="skin-cube" style="--tex:url('${url}')"><i class="f0"></i><i class="f1"></i><i class="f2"></i><i class="f3"></i><i class="f4"></i><i class="f5"></i></span></span>`;
+}
+
+async function openPopular() {
+  const id = S.content.id;
+  if (!id) return;
+  const cur = S.instances.find((i) => i.id === id);
+  const owned = new Set(((cur && cur.servers) || []).map((s) => s.address));
+  showModal(`${sheetHead('Servidores populares')}
+    <p class="muted">Servidores grandes y conocidos con ping real en vivo. Haz clic en ${ic('plus')} Añadir para ponerlos en tu instancia (algunos necesitan cuenta premium de Java).</p>
+    <div class="list">${POPULAR_SERVERS.map(([n, a], idx) => `
+      <div class="item">
+        <span class="srv-dot wait" id="psdot-${idx}" title=""></span>
+        <div class="grow"><div>${esc(n)}</div><span class="muted" style="font-size:12.5px">${esc(a)} · ${esc(['Snn purpur','Minigames','Bedwars/SkyWars','Caja de supervivencia','Prision','Supervivencia anárquica','Anarquía histórica'][idx] || 'Multijugador')}</span><span class="muted srv-info" id="psinfo-${idx}" style="font-size:12px;display:block"></span></div>
+        ${owned.has(a) ? '<span class="chip">AÑADIDO</span>' : `<button class="btn small primary" data-act="pop-add" data-name="${esc(n)}" data-addr="${esc(a)}">${ic('plus')}Añadir</button>`}
+      </div>`).join('')}</div>
+    <footer><button class="btn primary" data-act="close">Cerrar</button></footer>`, true);
+  POPULAR_SERVERS.forEach(async ([, a], idx) => {
+    try {
+      const st = await api('ping_server', { address: a }, true);
+      const dot = document.getElementById(`psdot-${idx}`);
+      const info = document.getElementById(`psinfo-${idx}`);
+      if (!dot) return;
+      if (st && st.online) {
+        dot.className = 'srv-dot on';
+        if (info) info.textContent = `${st.players_online} jugadores · ${st.ping_ms} ms`;
+      } else {
+        dot.className = 'srv-dot off';
+        if (info) info.textContent = 'Sin conexión ahora mismo';
+      }
+    } catch (_) {
+      const dot = document.getElementById(`psdot-${idx}`);
+      if (dot) dot.className = 'srv-dot off';
+    }
+  });
 }
 
 async function openWardrobe(id) {
@@ -814,7 +970,7 @@ async function openWardrobe(id) {
   const saved = allSkins.length
     ? allSkins.map((s) => `
       <div class="item">
-        <canvas class="skin-canvas" data-skin="${esc(s.data)}"></canvas>
+        ${skinCube(s.data)}
         <div class="grow"><h3 class="ellipsis">${esc(s.name)}</h3></div>
         ${isMs ? `<button class="btn small primary" data-act="wardrobe-apply" data-id="${esc(s.id)}">Aplicar</button>` : ''}
         <button class="icon-btn" aria-label="Eliminar" data-act="wardrobe-remove" data-id="${esc(s.id)}">${ic('trash')}</button>
@@ -838,7 +994,7 @@ async function openWardrobe(id) {
     const grid = allSkins.length
       ? allSkins.map((s) => `
         <div class="item">
-          <canvas class="skin-canvas" data-skin="${esc(s.data)}"></canvas>
+          ${skinCube(s.data)}
           <div class="grow"><h3 class="ellipsis">${esc(s.name)}</h3></div>
           <button class="btn small primary" data-act="off-skin" data-id="${esc(s.id)}">Poner skin</button>
         </div>`).join('')
@@ -858,6 +1014,8 @@ async function openWardrobe(id) {
       <div class="row wrap">
         <label class="field" style="max-width:190px"><span>Modelo</span><select id="w-variant"><option value="classic">Clásica</option><option value="slim">Delgada</option></select></label>
         <label class="field" style="max-width:150px"><span>Nombre</span><input type="text" id="w-name" maxlength="40" placeholder="opcional"></label>
+        <label class="field" style="max-width:170px"><span>Buscar por nick</span><input type="text" id="w-nick" maxlength="20" placeholder="ejemplo: Notch"></label>
+        <button class="btn" data-act="w-nick">${ic('search')}Buscar skin</button>
         <label class="field grow"><span>URL https de la skin</span><input type="text" id="w-url" placeholder="https://...png"></label>
         <button class="btn" data-act="w-add-url">Añadir por URL</button>
         <button class="btn" data-act="w-add-file">Elegir PNG</button>
@@ -1021,7 +1179,9 @@ function onProgress(p) {
   clearTimeout(dockTimer);
   S.progress = p;
   updateDock();
+  if (p.stage === 'running') playSound('start');
   if (p.stage === 'running' || (p.stage === 'modpack' && p.label === 'Modpack instalado')) {
+    if (p.stage === 'modpack') playSound('done');
     dockTimer = setTimeout(() => {
       S.progress = null;
       updateDock();
@@ -1190,6 +1350,18 @@ const actions = {
       toast('Skin guardada en el armario', 'ok');
       openWardrobe(wardrobeAcc);
     } catch (_) {}
+  },
+  'w-nick': async () => {
+    const nick = $('#w-nick') ? $('#w-nick').value.trim() : '';
+    if (!nick) return toast('Escribe un nick para buscar');
+    try {
+      const url = await api('skin_lookup', { name: nick });
+      await api('wardrobe_add', { source: url, name: nick });
+      toast(`Skin de ${nick} guardada en el armario`, 'ok');
+      openWardrobe(wardrobeAcc);
+    } catch (e) {
+      toast(String(e).replace(/^Error: /, ''), 'err');
+    }
   },
   'w-add-file': async () => {
     const files = await pickFiles([{ name: 'PNG', extensions: ['png'] }], false);
@@ -1388,6 +1560,67 @@ const actions = {
     renderView();
   },
   'open-url': (d) => api('open_url', { url: d.url }).catch(() => {}),
+  'jvm-preset': (d) => {
+    const ta = document.getElementById(d.target);
+    if (ta) {
+      ta.value = JVM_PRESETS[d.preset] || '';
+      toast('Preset colocado; pulsa Guardar para aplicarlo', 'ok');
+    }
+  },
+  'shot-icon': async (d) => {
+    try {
+      await api('screenshot_to_icon', { id: d.id, name: d.name });
+      S.instances = await api('list_instances') || [];
+      toast('Captura puesta como icono de la instancia', 'ok');
+      renderView();
+    } catch (e) {
+      toast(String(e), 'err');
+    }
+  },
+  'mp-refresh': async (d) => {
+    if (!S.progress) S.progress = { kind: 'modpack' };
+    renderTop();
+    try {
+      await api('refresh_modpack', { id: d.id });
+      toast('Modpack actualizado', 'ok');
+      S.instances = await api('list_instances') || [];
+    } catch (e) {
+      toast(String(e).replace(/^Error: /, ''), 'err');
+    }
+    S.progress = null;
+    renderTop();
+  },
+  'srv-popular': () => openPopular(),
+  'pop-add': async (d) => {
+    const id = S.content.id;
+    if (!id) return;
+    try {
+      const cur = S.instances.find((i) => i.id === id);
+      const servers = (cur && cur.servers ? cur.servers : []).map((s) => ({ name: s.name, address: s.address }));
+      if (servers.some((s) => s.address === d.addr)) return toast('Ese servidor ya está en la lista');
+      servers.push({ name: d.name, address: d.addr });
+      const upd = await api('set_servers', { id, servers });
+      const ix = S.instances.findIndex((i) => i.id === id);
+      if (ix >= 0) S.instances[ix] = upd;
+      toast(`Servidor ${d.name} añadido`, 'ok');
+      openContent(id, 'servers');
+    } catch (e) {
+      toast(String(e), 'err');
+    }
+  },
+  'about': async () => {
+    let info = { name: 'Nebula Launcher', version: '', repo: 'https://github.com/mclovin552/nebula-launcher', issues: 'https://github.com/mclovin552/nebula-launcher/issues' };
+    try {
+      info = { ...info, ...(await api('app_info')) };
+    } catch (_) {}
+    showModal(`${sheetHead('Acerca de Nebula')}
+      <div class="stack" style="text-align:center;padding:10px">
+        <h2>☄ ${esc(info.name)}</h2>
+        <p class="muted">Versión ${esc(info.version)}</p>
+        <p class="muted" style="max-width:420px;margin:0 auto">Lanzador de Minecraft Java de código abierto creado por mclovin552. Licencia MIT: puedes usarlo, copiarlo y mejorarlo libremente.</p>
+      </div>
+      <footer><button class="btn" data-act="open-url" data-url="${esc(info.issues)}">Reportar un fallo</button><button class="btn primary" data-act="open-url" data-url="${esc(info.repo)}">Ver en GitHub</button></footer>`);
+  },
   'clear-logs': () => {
     S.logs = [];
     renderView();
@@ -1407,13 +1640,16 @@ const actions = {
       pre_launch: $('#s-pre').value.trim(),
       post_exit: $('#s-post').value.trim(),
       language: $('#s-lang').value,
+      theme: $('#s-theme') ? $('#s-theme').value : 'dark',
       update_repo: $('#s-repo').value.trim(),
       close_to_tray: $('#s-tray') ? $('#s-tray').checked : true,
+      auto_backup_minutes: Math.max(0, Math.min(240, parseInt(($('#s-backup') || {}).value, 10) || 0)),
       discord_app_id: (($('#s-discord') || {}).value || '').trim().replace(/[^0-9]/g, '')
     };
     try {
       await api('settings_set', { settings: s });
       S.settings = s;
+      applyTheme();
       renderRail();
       renderTop();
       renderView();
@@ -1422,14 +1658,40 @@ const actions = {
   }
 };
 
-document.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-act]');
+document.addEventListener('click', (e) => {  const el = e.target.closest('[data-act]');
   if (!el) {
     if (e.target.id === 'modal') closeModal();
     return;
   }
   const fn = actions[el.dataset.act];
   if (fn) fn(el.dataset, el);
+});
+
+let dragInst = null;
+document.addEventListener('dragstart', (e) => {
+  const c = e.target.closest && e.target.closest('.card.with-cover');
+  if (c && c.dataset.id && S.view === 'instances') {
+    dragInst = c.dataset.id;
+    e.dataTransfer.effectAllowed = 'move';
+  }
+});
+document.addEventListener('dragend', () => { dragInst = null; });
+document.addEventListener('dragover', (e) => {
+  if (dragInst && S.view === 'instances') e.preventDefault();
+});
+document.addEventListener('drop', async (e) => {
+  if (!dragInst || S.view !== 'instances') return;
+  e.preventDefault();
+  const c = e.target.closest && e.target.closest('.card.with-cover');
+  if (c && c.dataset.id && c.dataset.id !== dragInst) {
+    try {
+      await api('reorder_instances', { id: dragInst, other: c.dataset.id });
+      S.instances = await api('list_instances') || [];
+      renderView();
+      toast('Orden cambiado', 'ok');
+    } catch (_) {}
+  }
+  dragInst = null;
 });
 
 document.addEventListener('input', (e) => {
@@ -1439,6 +1701,22 @@ document.addEventListener('input', (e) => {
     searchTimer = setTimeout(() => runSearch(true), 350);
   }
 });
+
+const viewEl = () => document.getElementById('view');
+if (viewEl()) {
+  viewEl().addEventListener('scroll', () => {
+    const v = viewEl();
+    const bar = document.getElementById('topbar');
+    if (bar) bar.classList.toggle('scrolled', v.scrollTop > 8);
+    const top = document.getElementById('to-top');
+    if (top) top.classList.toggle('show', v.scrollTop > 420);
+  });
+  document.addEventListener('click', (e) => {
+    if (e.target.id === 'to-top' || (e.target.closest && e.target.closest('#to-top'))) {
+      viewEl().scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
+}
 
 document.addEventListener('change', (e) => {
   if (e.target.id === 'd-sort') {
@@ -1480,6 +1758,7 @@ async function boot() {
     S.running.delete(e.payload.instance);
     S.logs.push(`[Nebula] El juego terminó con código ${e.payload.code}`);
     const normal = [0, null, 130, 143].includes(e.payload.code);
+    if (normal) playSound('exit'); else playSound('err');
     if (!normal) showCrash(e.payload.instance);
     if (S.view === 'home' || S.view === 'instances') renderView();
   });
@@ -1488,11 +1767,12 @@ async function boot() {
     const [settings, sys] = await Promise.all([api('settings_get'), api('system_info')]);
     S.settings = settings;
     S.sys = sys;
+    applyTheme();
     await Promise.all([refreshInstances(), refreshAccounts()]);
     const running = await api('running', {}, true);
     S.running = new Set(running);
   } catch (_) {
-    S.settings = S.settings || { min_memory: 1024, max_memory: 4096, java_path: '', jvm_args: '', wrapper: '', width: 1280, height: 720, concurrency: 32, show_snapshots: false };
+    S.settings = S.settings || { min_memory: 1024, max_memory: 4096, java_path: '', jvm_args: '', wrapper: '', width: 1280, height: 720, concurrency: 32, show_snapshots: false, theme: 'dark' };
   }
   S.discover.target = S.activeInstance || '';
   renderRail();

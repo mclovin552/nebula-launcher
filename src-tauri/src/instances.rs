@@ -5,9 +5,9 @@ use crate::pack;
 use crate::paths;
 use crate::util::{now_millis, now_secs, safe_name, slug, Ctx};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use serde_json::Value;
 use tauri::AppHandle;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -44,8 +44,13 @@ pub struct Instance {
     pub last_played: Option<u64>,
     #[serde(default)]
     pub accent: u8,
+    #[serde(default)]
+    pub order: u32,
+
     #[serde(skip)]
     pub icon: Option<String>,
+    #[serde(default)]
+    pub pack_project: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -57,6 +62,7 @@ pub struct Patch {
     pub env_vars: Option<String>,
     pub group: Option<String>,
     pub accent: Option<u8>,
+    pub order: Option<u32>,
 }
 
 #[derive(Serialize)]
@@ -154,9 +160,11 @@ pub fn list() -> Result<Vec<Instance>, String> {
         }
     }
     out.sort_by(|a, b| {
-        let ka = a.last_played.unwrap_or(a.created);
-        let kb = b.last_played.unwrap_or(b.created);
-        kb.cmp(&ka)
+        a.order.cmp(&b.order).then_with(|| {
+            b.last_played
+                .unwrap_or(a.created)
+                .cmp(&a.last_played.unwrap_or(a.created))
+        })
     });
     Ok(out)
 }
@@ -180,7 +188,8 @@ pub async fn create(
     let (version_id, loader_version) = match loader.as_str() {
         "vanilla" => (mc_version.clone(), None),
         "fabric" | "quilt" | "forge" | "neoforge" => {
-            let (id, lv) = loaders::install_profile(app, &loader, &mc_version, loader_version).await?;
+            let (id, lv) =
+                loaders::install_profile(app, &loader, &mc_version, loader_version).await?;
             (id, Some(lv))
         }
         other => return Err(format!("Cargador no soportado: {other}")),
@@ -204,6 +213,8 @@ pub async fn create(
         last_played: None,
         accent: (now_millis() % 6) as u8,
         icon: None,
+        pack_project: None,
+        order: 0,
     };
     for sub in ["mods", "resourcepacks", "shaderpacks", "saves"] {
         std::fs::create_dir_all(game_dir(&id).join(sub)).ctx()?;
@@ -275,12 +286,13 @@ fn b64_decode(s: &str) -> Vec<u8> {
             _ => 0,
         }
     };
-    let data: Vec<u8> = s.bytes().filter(|b| !b.is_ascii_whitespace() && *b != b'=').collect();
+    let data: Vec<u8> = s
+        .bytes()
+        .filter(|b| !b.is_ascii_whitespace() && *b != b'=')
+        .collect();
     let mut out = Vec::with_capacity(data.len() * 3 / 4);
     for chunk in data.chunks(4) {
-        let n = chunk
-            .iter()
-            .fold(0u32, |acc, b| (acc << 6) | val(*b));
+        let n = chunk.iter().fold(0u32, |acc, b| (acc << 6) | val(*b));
         let rem = chunk.len();
         if rem > 1 {
             out.push((n >> 16) as u8);
@@ -316,8 +328,23 @@ pub fn update(id: &str, patch: Patch) -> Result<Instance, String> {
     if let Some(a) = patch.accent {
         inst.accent = a % 6;
     }
+    if let Some(o) = patch.order {
+        inst.order = o;
+    }
     save(&inst)?;
     Ok(inst)
+}
+
+pub fn reorder(id: &str, other: &str) -> Result<(), String> {
+    let mut a = get(id)?;
+    let mut b = get(other)?;
+    let t = std::mem::replace(&mut a.order, u32::MAX);
+    let t2 = std::mem::replace(&mut b.order, 0);
+    a.order = t2;
+    b.order = t;
+    save(&a)?;
+    save(&b)?;
+    Ok(())
 }
 
 pub fn set_servers(id: &str, servers: Vec<Server>) -> Result<Instance, String> {
@@ -379,7 +406,7 @@ pub fn list_content(id: &str, kind: &str) -> Result<Vec<ContentItem>, String> {
             icon: info.and_then(|m| m.icon),
         });
     }
-    out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    out.sort_by_key(|a| a.name.to_lowercase());
     Ok(out)
 }
 
@@ -423,7 +450,8 @@ pub fn import_files(id: &str, kind: &str, files: Vec<String>) -> Result<usize, S
         let Some(name) = src.file_name().map(|n| n.to_string_lossy().to_string()) else {
             continue;
         };
-        if !src.is_file() || !safe_name(&name) || !name.to_lowercase().ends_with(&format!(".{ext}")) {
+        if !src.is_file() || !safe_name(&name) || !name.to_lowercase().ends_with(&format!(".{ext}"))
+        {
             continue;
         }
         std::fs::copy(&src, dest.join(&name)).ctx()?;
@@ -436,10 +464,15 @@ pub fn import_files(id: &str, kind: &str, files: Vec<String>) -> Result<usize, S
 }
 
 fn add_dir(zw: &mut zip::ZipWriter<std::fs::File>, base: &Path, cur: &Path) -> Result<(), String> {
-    let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let opts = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
     for e in std::fs::read_dir(cur).ctx()?.flatten() {
         let p = e.path();
-        let rel = p.strip_prefix(base).ctx()?.to_string_lossy().replace('\\', "/");
+        let rel = p
+            .strip_prefix(base)
+            .ctx()?
+            .to_string_lossy()
+            .replace('\\', "/");
         if p.is_dir() {
             zw.add_directory(format!("{rel}/"), opts).ctx()?;
             add_dir(zw, base, &p)?;
@@ -499,7 +532,9 @@ pub fn crash_info(id: &str) -> Result<CrashInfo, String> {
             }
         }
     }
-    let report = newest.and_then(|(_, p)| std::fs::read(p).ok()).map(|b| tail_bytes(&b, 200_000));
+    let report = newest
+        .and_then(|(_, p)| std::fs::read(p).ok())
+        .map(|b| tail_bytes(&b, 200_000));
     let log_tail = std::fs::read(game.join("logs").join("latest.log"))
         .map(|b| {
             let text = tail_bytes(&b, 60_000);
@@ -546,7 +581,10 @@ pub async fn import_multimc(app: Option<AppHandle>, path: PathBuf) -> Result<Ins
         let entry_name = best
             .ok_or("El .zip no parece una instancia de Prism/MultiMC (falta mmc-pack.json)")?
             .1;
-        let root = entry_name.strip_suffix("mmc-pack.json").unwrap_or("").to_string();
+        let root = entry_name
+            .strip_suffix("mmc-pack.json")
+            .unwrap_or("")
+            .to_string();
 
         let index: Value = {
             let b = zip_entry(&mut zip, &entry_name).ok_or("mmc-pack.json no se puede leer")?;
@@ -570,7 +608,9 @@ pub async fn import_multimc(app: Option<AppHandle>, path: PathBuf) -> Result<Ins
             .map(|v| ("fabric".to_string(), Some(v)))
             .or_else(|| find("org.quiltmc.quilt-loader").map(|v| ("quilt".to_string(), Some(v))))
             .or_else(|| find("net.neoforged").map(|v| ("neoforge".to_string(), Some(v))))
-            .or_else(|| find("net.minecraftforge").map(|v| ("forge".to_string(), Some(format!("{mc}-{v}")))))
+            .or_else(|| {
+                find("net.minecraftforge").map(|v| ("forge".to_string(), Some(format!("{mc}-{v}"))))
+            })
             .unwrap_or(("vanilla".to_string(), None));
 
         let cfg_name = zip_entry(&mut zip, &format!("{root}instance.cfg"))
@@ -589,12 +629,25 @@ pub async fn import_multimc(app: Option<AppHandle>, path: PathBuf) -> Result<Ins
                 .unwrap_or("Importada")
                 .to_string()
         });
-        Ok(PrismPack { root, mc, loader, loader_version, name })
+        Ok(PrismPack {
+            root,
+            mc,
+            loader,
+            loader_version,
+            name,
+        })
     })
     .await
     .ctx()??;
 
-    let inst = create(app.clone(), pack.name, pack.mc, pack.loader, pack.loader_version).await?;
+    let inst = create(
+        app.clone(),
+        pack.name,
+        pack.mc,
+        pack.loader,
+        pack.loader_version,
+    )
+    .await?;
     let game = game_dir(&inst.id);
     let prefixes = vec![
         format!("{}minecraft/", pack.root),
@@ -607,7 +660,10 @@ pub async fn import_multimc(app: Option<AppHandle>, path: PathBuf) -> Result<Ins
         let mut zip = zip::ZipArchive::new(f).ctx()?;
         let mut found: Option<String> = None;
         for i in 0..zip.len() {
-            let name = zip.by_index(i).map(|e| e.name().to_string()).unwrap_or_default();
+            let name = zip
+                .by_index(i)
+                .map(|e| e.name().to_string())
+                .unwrap_or_default();
             for p in &scan_prefixes {
                 if name.starts_with(p.as_str()) {
                     found = Some(name);
@@ -630,4 +686,104 @@ pub async fn import_multimc(app: Option<AppHandle>, path: PathBuf) -> Result<Ins
         .await
         .ctx()??;
     Ok(inst)
+}
+
+#[derive(Serialize)]
+pub struct ScreenItem {
+    pub name: String,
+    pub thumb: String,
+    pub when: u64,
+}
+
+pub async fn list_screenshots(id: &str) -> Result<Vec<ScreenItem>, String> {
+    get(id)?;
+    let base = game_dir(id).join("screenshots");
+    std::fs::create_dir_all(&base).ctx()?;
+    let mut files: Vec<(PathBuf, std::time::SystemTime)> = Vec::new();
+    for e in std::fs::read_dir(&base).ctx()?.flatten() {
+        let p = e.path();
+        let Some(name) = p.file_name().map(|n| n.to_string_lossy().to_lowercase()) else {
+            continue;
+        };
+        if !name.ends_with(".png") || name.starts_with('.') {
+            continue;
+        }
+        if let Ok(meta) = e.metadata() {
+            if meta.is_file() {
+                files.push((p, meta.modified().unwrap_or(std::time::UNIX_EPOCH)));
+            }
+        }
+    }
+    files.sort_by_key(|f| std::cmp::Reverse(f.1));
+    files.truncate(60);
+    let out = tokio::task::spawn_blocking(move || -> Vec<ScreenItem> {
+        files
+            .iter()
+            .filter_map(|(p, t)| {
+                let name = p.file_name()?.to_string_lossy().to_string();
+                let img = image::open(p).ok()?;
+                let thumb = img.resize(256, 160, image::imageops::FilterType::Triangle);
+                let mut buf = Vec::new();
+                thumb
+                    .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+                    .ok()?;
+                let when = t
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                Some(ScreenItem {
+                    name,
+                    thumb: format!("data:image/png;base64,{}", modmeta::b64(&buf)),
+                    when,
+                })
+            })
+            .collect()
+    })
+    .await
+    .unwrap_or_default();
+    Ok(out)
+}
+
+pub async fn screenshot_to_icon(id: &str, name: &str) -> Result<(), String> {
+    get(id)?;
+    if !safe_name(name) {
+        return Err("Nombre inválido".to_string());
+    }
+    let id_owned = id.to_string();
+    let src = game_dir(id).join("screenshots").join(name);
+    let bytes = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, String> {
+        let img = image::open(&src).map_err(|_| "No se pudo abrir la captura".to_string())?;
+        let square = img.resize_to_fill(128, 128, image::imageops::FilterType::Triangle);
+        let mut buf = Vec::new();
+        square
+            .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+            .map_err(|e| e.to_string())?;
+        Ok(buf)
+    })
+    .await
+    .ctx()??;
+    save_icon_bytes(&id_owned, &bytes)
+}
+
+pub fn keep_last_backups(id: &str, keep: usize) {
+    let backups = dir(id).join("backups");
+    let Ok(entries) = std::fs::read_dir(&backups) else {
+        return;
+    };
+    let mut files: Vec<(PathBuf, std::time::SystemTime)> = entries
+        .flatten()
+        .filter_map(|e| {
+            let p = e.path();
+            if p.extension()?.to_string_lossy().eq_ignore_ascii_case("zip") {
+                let t = e.metadata().ok()?.modified().ok()?;
+                Some((p, t))
+            } else {
+                None
+            }
+        })
+        .collect();
+    files.sort_by_key(|f| std::cmp::Reverse(f.1));
+    for (p, _) in files.into_iter().skip(keep) {
+        let _ = std::fs::remove_file(p);
+    }
 }

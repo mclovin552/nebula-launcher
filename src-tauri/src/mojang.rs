@@ -66,7 +66,9 @@ pub async fn version_json(id: &str) -> Result<Value, String> {
         .ok_or_else(|| format!("La versión {id} no existe en el manifiesto de Mojang"))?;
     let bytes = http::get_bytes(&entry.url).await?;
     if !entry.sha1.is_empty() && !http::sha1_of_bytes(&bytes).eq_ignore_ascii_case(&entry.sha1) {
-        return Err(format!("El JSON de la versión {id} no coincide con su SHA-1"));
+        return Err(format!(
+            "El JSON de la versión {id} no coincide con su SHA-1"
+        ));
     }
     let v: Value = serde_json::from_slice(&bytes).ctx()?;
     if let Some(parent) = path.parent() {
@@ -393,7 +395,9 @@ pub struct AssetPlan {
 }
 
 pub async fn plan_assets(v: &Value) -> Result<AssetPlan, String> {
-    let index = v.get("assetIndex").ok_or("La versión no define assetIndex")?;
+    let index = v
+        .get("assetIndex")
+        .ok_or("La versión no define assetIndex")?;
     let id = index
         .get("id")
         .and_then(|x| x.as_str())
@@ -437,10 +441,15 @@ pub async fn plan_assets(v: &Value) -> Result<AssetPlan, String> {
 }
 
 pub async fn link_legacy_assets(index_id: &str, game_dir: &Path) -> Result<PathBuf, String> {
-    let idx_path = paths::assets().join("indexes").join(format!("{index_id}.json"));
+    let idx_path = paths::assets()
+        .join("indexes")
+        .join(format!("{index_id}.json"));
     let data = tokio::fs::read(&idx_path).await.ctx()?;
     let parsed: Value = serde_json::from_slice(&data).ctx()?;
-    let is_virtual = parsed.get("virtual").and_then(|x| x.as_bool()).unwrap_or(false);
+    let is_virtual = parsed
+        .get("virtual")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
     let to_resources = parsed
         .get("map_to_resources")
         .and_then(|x| x.as_bool())
@@ -507,7 +516,8 @@ mod tests {
         let feats = features();
         let linux = json!([{ "action": "allow", "os": { "name": "linux" } }]);
         let windows = json!([{ "action": "allow", "os": { "name": "windows" } }]);
-        let not_osx = json!([{ "action": "allow" }, { "action": "disallow", "os": { "name": "osx" } }]);
+        let not_osx =
+            json!([{ "action": "allow" }, { "action": "disallow", "os": { "name": "osx" } }]);
         assert!(allowed(Some(&linux), &feats));
         assert!(!allowed(Some(&windows), &feats));
         assert!(allowed(Some(&not_osx), &feats));
@@ -530,7 +540,10 @@ mod tests {
             "arguments": { "game": ["--b"], "jvm": [] }
         });
         let merged = merge(parent, child);
-        assert_eq!(merged["mainClass"], "net.fabricmc.loader.impl.launch.knot.KnotClient");
+        assert_eq!(
+            merged["mainClass"],
+            "net.fabricmc.loader.impl.launch.knot.KnotClient"
+        );
         assert_eq!(merged["libraries"][0]["name"], "c:d:2");
         assert_eq!(merged["libraries"][1]["name"], "a:b:1");
         assert_eq!(merged["arguments"]["game"], json!(["--a", "--b"]));

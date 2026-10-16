@@ -52,7 +52,12 @@ pub async fn search(
     }
     if kind == "mod" || kind == "modpack" {
         if let Some(l) = loader.filter(|s| !s.is_empty() && s != "vanilla") {
-            facets.push(loader_list(&l).iter().map(|x| format!("categories:{x}")).collect());
+            facets.push(
+                loader_list(&l)
+                    .iter()
+                    .map(|x| format!("categories:{x}"))
+                    .collect(),
+            );
         }
     }
     let facets_json = serde_json::to_string(&facets).ctx()?;
@@ -105,7 +110,10 @@ async fn fetch_versions(
 ) -> Result<Vec<Value>, String> {
     let mut q: Vec<(String, String)> = Vec::new();
     if let Some(m) = mc {
-        q.push(("game_versions".to_string(), serde_json::to_string(&[m]).ctx()?));
+        q.push((
+            "game_versions".to_string(),
+            serde_json::to_string(&[m]).ctx()?,
+        ));
     }
     if let Some(l) = loaders {
         q.push(("loaders".to_string(), serde_json::to_string(&l).ctx()?));
@@ -192,7 +200,11 @@ pub async fn install_project(
     }
     let dest = instances::game_dir(instance_id).join(folder);
     tokio::fs::create_dir_all(&dest).await.ctx()?;
-    let loaders = if use_loader { Some(loader_list(&inst.loader)) } else { None };
+    let loaders = if use_loader {
+        Some(loader_list(&inst.loader))
+    } else {
+        None
+    };
     let mut queue: Vec<(String, Option<String>)> = vec![(project_id.to_string(), None)];
     let mut visited: HashSet<String> = HashSet::new();
     let mut installed: Vec<String> = Vec::new();
@@ -273,13 +285,21 @@ pub async fn optimize_instance(app: AppHandle, instance_id: &str) -> Result<Vec<
     };
     let mut installed: Vec<String> = Vec::new();
     for (i, slug) in slugs.iter().enumerate() {
-        emit_progress(&app, "modpack", "Optimizando instancia", i as u64, slugs.len() as u64);
+        emit_progress(
+            &app,
+            "modpack",
+            "Optimizando instancia",
+            i as u64,
+            slugs.len() as u64,
+        );
         if let Ok(files) = install_project("mod", slug, instance_id).await {
             installed.extend(files);
         }
     }
     if installed.is_empty() {
-        return Err("No se encontraron mods de rendimiento compatibles con esta versión".to_string());
+        return Err(
+            "No se encontraron mods de rendimiento compatibles con esta versión".to_string(),
+        );
     }
     emit_progress(&app, "modpack", "Instancia optimizada", 1, 1);
     Ok(installed)
@@ -393,7 +413,11 @@ pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateItem>, String>
     Ok(out)
 }
 
-pub async fn apply_update(instance_id: &str, old_name: &str, version_id: &str) -> Result<String, String> {
+pub async fn apply_update(
+    instance_id: &str,
+    old_name: &str,
+    version_id: &str,
+) -> Result<String, String> {
     http::reset_cancel();
     instances::get(instance_id)?;
     if !safe_name(old_name) {
@@ -415,6 +439,9 @@ fn host_allowed(url: &str) -> bool {
         "https://github.com/",
         "https://raw.githubusercontent.com/",
         "https://gitlab.com/",
+        "https://cdn.technicpack.net/",
+        "https://technic.s3.amazonaws.com/",
+        "https://s3.amazonaws.com/",
     ]
     .iter()
     .any(|p| url.starts_with(p))
@@ -443,19 +470,7 @@ pub async fn install_from_pack(
     title: String,
     concurrency: usize,
 ) -> Result<instances::Instance, String> {
-    let pack_for_index = pack_path.clone();
-    let index: Value = tokio::task::spawn_blocking(move || -> Result<Value, String> {
-        let file = std::fs::File::open(&pack_for_index).ctx()?;
-        let mut zip = zip::ZipArchive::new(file).ctx()?;
-        let mut entry = zip
-            .by_name("modrinth.index.json")
-            .map_err(|_| "El archivo no es un modpack de Modrinth (.mrpack)".to_string())?;
-        let mut buf = String::new();
-        std::io::Read::read_to_string(&mut entry, &mut buf).ctx()?;
-        serde_json::from_str(&buf).ctx()
-    })
-    .await
-    .ctx()??;
+    let index = read_mrpack_index(pack_path.clone()).await?;
 
     let deps = index.get("dependencies").cloned().unwrap_or(Value::Null);
     let mc = deps
@@ -493,6 +508,21 @@ pub async fn install_from_pack(
     Ok(inst)
 }
 
+async fn read_mrpack_index(pack_path: PathBuf) -> Result<Value, String> {
+    tokio::task::spawn_blocking(move || -> Result<Value, String> {
+        let file = std::fs::File::open(&pack_path).ctx()?;
+        let mut zip = zip::ZipArchive::new(file).ctx()?;
+        let mut entry = zip
+            .by_name("modrinth.index.json")
+            .map_err(|_| "El archivo no es un modpack de Modrinth (.mrpack)".to_string())?;
+        let mut buf = String::new();
+        std::io::Read::read_to_string(&mut entry, &mut buf).ctx()?;
+        serde_json::from_str(&buf).ctx()
+    })
+    .await
+    .ctx()?
+}
+
 async fn finish_modpack(
     app: &AppHandle,
     inst: &instances::Instance,
@@ -515,11 +545,11 @@ async fn finish_modpack(
             let Some(rel) = f.get("path").and_then(|p| p.as_str()).and_then(safe_rel) else {
                 continue;
             };
-            let Some(url) = f
-                .get("downloads")
-                .and_then(|d| d.as_array())
-                .and_then(|d| d.iter().filter_map(|u| u.as_str()).find(|u| host_allowed(u)))
-            else {
+            let Some(url) = f.get("downloads").and_then(|d| d.as_array()).and_then(|d| {
+                d.iter()
+                    .filter_map(|u| u.as_str())
+                    .find(|u| host_allowed(u))
+            }) else {
                 continue;
             };
             jobs.push(Job {
@@ -536,7 +566,13 @@ async fn finish_modpack(
     }
     let app_progress = app.clone();
     http::download_all(jobs, concurrency, move |d, t| {
-        emit_progress(&app_progress, "modpack", "Descargando contenido del modpack", d, t)
+        emit_progress(
+            &app_progress,
+            "modpack",
+            "Descargando contenido del modpack",
+            d,
+            t,
+        )
     })
     .await?;
     let prefixes = vec!["overrides/".to_string(), "client-overrides/".to_string()];
@@ -629,7 +665,11 @@ pub async fn export_mrpack(instance_id: &str, dest: String) -> Result<(), String
     let mut index_files: Vec<Value> = Vec::new();
     let mut overrides: Vec<(String, PathBuf)> = Vec::new();
     for f in &files {
-        let server_env = if f.client_only { "unsupported" } else { "required" };
+        let server_env = if f.client_only {
+            "unsupported"
+        } else {
+            "required"
+        };
         match urls.get(&f.sha1) {
             Some(u) => index_files.push(json!({
                 "path": f.rel,
@@ -644,7 +684,10 @@ pub async fn export_mrpack(instance_id: &str, dest: String) -> Result<(), String
     let config_dir = game.join("config");
     for p in pack::collect_files(&config_dir) {
         if let Ok(rel) = p.strip_prefix(&game) {
-            overrides.push((format!("overrides/{}", rel.to_string_lossy().replace('\\', "/")), p.clone()));
+            overrides.push((
+                format!("overrides/{}", rel.to_string_lossy().replace('\\', "/")),
+                p.clone(),
+            ));
         }
     }
     let options = game.join("options.txt");
@@ -653,7 +696,10 @@ pub async fn export_mrpack(instance_id: &str, dest: String) -> Result<(), String
     }
 
     let mut dependencies = serde_json::Map::new();
-    dependencies.insert("minecraft".to_string(), Value::String(inst.mc_version.clone()));
+    dependencies.insert(
+        "minecraft".to_string(),
+        Value::String(inst.mc_version.clone()),
+    );
     let lv = inst.loader_version.clone().unwrap_or_default();
     match inst.loader.as_str() {
         "fabric" => {
@@ -666,7 +712,10 @@ pub async fn export_mrpack(instance_id: &str, dest: String) -> Result<(), String
             dependencies.insert("neoforge".to_string(), Value::String(lv));
         }
         "forge" => {
-            let short = lv.strip_prefix(&format!("{}-", inst.mc_version)).unwrap_or(&lv).to_string();
+            let short = lv
+                .strip_prefix(&format!("{}-", inst.mc_version))
+                .unwrap_or(&lv)
+                .to_string();
             dependencies.insert("forge".to_string(), Value::String(short));
         }
         _ => {}
@@ -680,11 +729,16 @@ pub async fn export_mrpack(instance_id: &str, dest: String) -> Result<(), String
         "dependencies": Value::Object(dependencies)
     });
     let index_bytes = serde_json::to_vec_pretty(&index).ctx()?;
-    let dest_path = if dest.to_lowercase().ends_with(".mrpack") { dest } else { format!("{dest}.mrpack") };
+    let dest_path = if dest.to_lowercase().ends_with(".mrpack") {
+        dest
+    } else {
+        format!("{dest}.mrpack")
+    };
     tokio::task::spawn_blocking(move || -> Result<(), String> {
         let file = std::fs::File::create(&dest_path).ctx()?;
         let mut zw = zip::ZipWriter::new(file);
-        let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+        let opts = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
         zw.start_file("modrinth.index.json", opts).ctx()?;
         zw.write_all(&index_bytes).ctx()?;
         for (name, path) in overrides {
@@ -697,5 +751,28 @@ pub async fn export_mrpack(instance_id: &str, dest: String) -> Result<(), String
     })
     .await
     .ctx()??;
+    Ok(())
+}
+
+pub async fn refresh_modpack(app: AppHandle, instance_id: &str) -> Result<(), String> {
+    http::reset_cancel();
+    let inst = instances::get(instance_id)?;
+    let pid = inst
+        .pack_project
+        .clone()
+        .ok_or("Esta instancia no guarda el modpack de Modrinth de origen")?;
+    emit_progress(&app, "modpack", "Buscando versión nueva del modpack", 0, 0);
+    let versions = fetch_versions(&pid, None, None).await?;
+    let version = best(versions).ok_or("El modpack no tiene versiones")?;
+    paths::ensure()?;
+    let (job, _) = primary_job(&version, paths::cache())?;
+    emit_progress(&app, "modpack", "Descargando modpack", 0, 1);
+    http::download(&job).await?;
+    let index = read_mrpack_index(job.path.clone()).await?;
+    let concurrency = crate::settings::load().concurrency;
+    emit_progress(&app, "modpack", "Descargando contenido del modpack", 0, 0);
+    finish_modpack(&app, &inst, &index, job.path, concurrency).await?;
+    let _ = loaders::ensure(&inst, None).await;
+    emit_progress(&app, "modpack", "Modpack actualizado", 1, 1);
     Ok(())
 }

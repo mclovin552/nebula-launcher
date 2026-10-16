@@ -18,7 +18,7 @@ async fn major_of(bin: &Path) -> Option<u64> {
     let rest = &text[start + 1..];
     let end = rest.find('"')?;
     let ver = &rest[..end];
-    let mut parts = ver.split(|c| c == '.' || c == '-' || c == '_' || c == '+');
+    let mut parts = ver.split(['.', '-', '_', '+']);
     let first: u64 = parts.next()?.parse().ok()?;
     if first == 1 {
         parts.next()?.parse().ok()
@@ -70,7 +70,11 @@ fn adoptium_arch() -> &'static str {
     }
 }
 
-pub async fn ensure<F>(major: u64, override_path: Option<String>, progress: F) -> Result<PathBuf, String>
+pub async fn ensure<F>(
+    major: u64,
+    override_path: Option<String>,
+    progress: F,
+) -> Result<PathBuf, String>
 where
     F: Fn(u64, u64) + Send + Sync + 'static,
 {
@@ -79,7 +83,10 @@ where
         if path.is_file() {
             return Ok(path);
         }
-        return Err(format!("La ruta de Java configurada no existe: {}", path.display()));
+        return Err(format!(
+            "La ruta de Java configurada no existe: {}",
+            path.display()
+        ));
     }
     let managed = managed_dir(major);
     if let Some(bin) = find_bin(&managed) {

@@ -88,19 +88,37 @@ fn save_skin_bytes(name: &str, bytes: Vec<u8>) -> Result<SkinEntry, String> {
     std::fs::create_dir_all(skins_dir()).ctx()?;
     std::fs::write(skin_path(&id), &bytes).ctx()?;
     let mut index = index;
-    index.insert(0, SkinRecord { id: id.clone(), name: name.to_string() });
+    index.insert(
+        0,
+        SkinRecord {
+            id: id.clone(),
+            name: name.to_string(),
+        },
+    );
     save_index(&index)?;
-    Ok(SkinEntry { id, name: name.to_string(), data: format!("data:image/png;base64,{}", b64(&bytes)) })
+    Ok(SkinEntry {
+        id,
+        name: name.to_string(),
+        data: format!("data:image/png;base64,{}", b64(&bytes)),
+    })
 }
 
 pub async fn add_skin(source: String, name: String) -> Result<SkinEntry, String> {
     let name = name.trim().chars().take(40).collect::<String>();
-    let name = if name.is_empty() { "Skin".to_string() } else { name };
+    let name = if name.is_empty() {
+        "Skin".to_string()
+    } else {
+        name
+    };
     if source.starts_with("https://") {
-        let bytes = http::get_bytes(&source).await.map_err(|e| format!("No se pudo descargar la skin: {e}"))?;
+        let bytes = http::get_bytes(&source)
+            .await
+            .map_err(|e| format!("No se pudo descargar la skin: {e}"))?;
         save_skin_bytes(&name, bytes)
     } else {
-        let bytes = tokio::fs::read(&source).await.map_err(|e| format!("No se pudo leer el archivo: {e}"))?;
+        let bytes = tokio::fs::read(&source)
+            .await
+            .map_err(|e| format!("No se pudo leer el archivo: {e}"))?;
         save_skin_bytes(&name, bytes)
     }
 }
@@ -121,7 +139,11 @@ pub fn list_skins() -> Vec<SkinEntry> {
         .into_iter()
         .filter_map(|r| {
             let bytes = std::fs::read(skin_path(&r.id)).ok()?;
-            Some(SkinEntry { id: r.id, name: r.name, data: format!("data:image/png;base64,{}", b64(&bytes)) })
+            Some(SkinEntry {
+                id: r.id,
+                name: r.name,
+                data: format!("data:image/png;base64,{}", b64(&bytes)),
+            })
         })
         .collect()
 }
@@ -138,7 +160,10 @@ async fn profile_json(account_id: &str) -> Result<Value, String> {
         .await
         .ctx()?;
     if !resp.status().is_success() {
-        return Err(format!("Minecraft no respondió el perfil ({})", resp.status()));
+        return Err(format!(
+            "Minecraft no respondió el perfil ({})",
+            resp.status()
+        ));
     }
     resp.json().await.ctx()
 }
@@ -151,9 +176,17 @@ pub async fn profile_items(account_id: &str) -> Result<ProfileItems, String> {
             .filter_map(|e| {
                 Some(CapeEntry {
                     id: e.get("id").and_then(|x| x.as_str())?.to_string(),
-                    alias: e.get("alias").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                    alias: e
+                        .get("alias")
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("")
+                        .to_string(),
                     active: e.get("state").and_then(|x| x.as_str()) == Some("ACTIVE"),
-                    url: e.get("url").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                    url: e
+                        .get("url")
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("")
+                        .to_string(),
                 })
             })
             .collect()
@@ -186,8 +219,13 @@ pub async fn set_cape(account_id: &str, cape_id: Option<String>) -> Result<(), S
     Ok(())
 }
 
-pub async fn apply_saved_skin(account_id: &str, skin_id: &str, variant: &str) -> Result<(), String> {
-    let bytes = std::fs::read(skin_path(skin_id)).map_err(|_| "Esa skin ya no está en el armario".to_string())?;
+pub async fn apply_saved_skin(
+    account_id: &str,
+    skin_id: &str,
+    variant: &str,
+) -> Result<(), String> {
+    let bytes = std::fs::read(skin_path(skin_id))
+        .map_err(|_| "Esa skin ya no está en el armario".to_string())?;
     let path = skins_dir().join(format!("tmp-{}", now_millis()));
     tokio::fs::write(&path, bytes).await.ctx()?;
     let result = accounts::change_skin(account_id, &path.to_string_lossy(), variant).await;
@@ -223,7 +261,12 @@ async fn ensure_csl(_app: AppHandle, instance_id: &str) -> Result<(), String> {
         .map_err(|e| format!("No se pudo instalar CustomSkinLoader: {e}"))
 }
 
-pub async fn local_skin(app: AppHandle, instance_id: &str, player: &str, skin_id: &str) -> Result<(), String> {
+pub async fn local_skin(
+    app: AppHandle,
+    instance_id: &str,
+    player: &str,
+    skin_id: &str,
+) -> Result<(), String> {
     if !valid_player(player) {
         return Err("Nombre de jugador no válido".to_string());
     }
@@ -239,14 +282,23 @@ pub async fn local_skin(app: AppHandle, instance_id: &str, player: &str, skin_id
     std::fs::write(dest.join(format!("{player}.png")), bytes).ctx()
 }
 
-pub async fn local_cape(app: AppHandle, instance_id: &str, player: &str, source: &str) -> Result<(), String> {
+pub async fn local_cape(
+    app: AppHandle,
+    instance_id: &str,
+    player: &str,
+    source: &str,
+) -> Result<(), String> {
     if !valid_player(player) {
         return Err("Nombre de jugador no válido".to_string());
     }
     let bytes = if source.starts_with("https://") {
-        http::get_bytes(source).await.map_err(|e| format!("No se pudo descargar la capa: {e}"))?
+        http::get_bytes(source)
+            .await
+            .map_err(|e| format!("No se pudo descargar la capa: {e}"))?
     } else {
-        tokio::fs::read(source).await.map_err(|e| format!("No se pudo leer el archivo: {e}"))?
+        tokio::fs::read(source)
+            .await
+            .map_err(|e| format!("No se pudo leer el archivo: {e}"))?
     };
     if bytes.len() < 8 || bytes[..8] != PNG_MAGIC {
         return Err("La capa debe ser un archivo PNG".to_string());
@@ -258,4 +310,50 @@ pub async fn local_cape(app: AppHandle, instance_id: &str, player: &str, source:
         .join("capes");
     std::fs::create_dir_all(&dest).ctx()?;
     std::fs::write(dest.join(format!("{player}.png")), bytes).ctx()
+}
+
+pub async fn lookup_skin(name: &str) -> Result<String, String> {
+    let name = name.trim();
+    if !(3..=20).contains(&name.len())
+        || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+    {
+        return Err("Escribe un nick válido de Minecraft (3-20 letras, números o _ )".to_string());
+    }
+    let up: Value = http::get_json(&format!(
+        "https://api.mojang.com/users/profiles/minecraft/{name}"
+    ))
+    .await?;
+    let id = up
+        .get("id")
+        .and_then(|i| i.as_str())
+        .ok_or("No existe un usuario con ese nick")?
+        .to_string();
+    let prof: Value = http::get_json(&format!(
+        "https://sessionserver.mojang.com/session/minecraft/profile/{id}"
+    ))
+    .await?;
+    let prop = prof
+        .get("properties")
+        .and_then(|p| p.as_array())
+        .and_then(|a| {
+            a.iter()
+                .find(|x| x.get("name").and_then(|n| n.as_str()) == Some("textures"))
+        });
+    let value = prop
+        .and_then(|p| p.get("value"))
+        .and_then(|v| v.as_str())
+        .ok_or("Ese jugador no tiene texturas de skin publicadas")?;
+    let decoded = b64(value.as_bytes());
+    let tex: Value = serde_json::from_str(&decoded).map_err(|e| e.to_string())?;
+    let url = tex
+        .get("textures")
+        .and_then(|t| t.get("SKIN"))
+        .and_then(|s| s.get("url"))
+        .and_then(|u| u.as_str())
+        .ok_or("Ese jugador no tiene skin publicada")?
+        .to_string();
+    Ok(url.replace(
+        "http://textures.minecraft.net",
+        "https://textures.minecraft.net",
+    ))
 }

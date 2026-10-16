@@ -23,6 +23,9 @@ pub fn extract_prefixed(zip_path: &Path, prefixes: &[String], dest: &Path) -> Re
         if rel.is_empty() {
             continue;
         }
+        if entry.size() > 512 * 1024 * 1024 {
+            continue;
+        }
         let Some(rel_path) = safe_rel(&rel) else {
             continue;
         };

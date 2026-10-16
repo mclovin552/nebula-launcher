@@ -8,8 +8,10 @@ use serde_json::Value;
 use std::collections::HashSet;
 use tauri::AppHandle;
 
-const FORGE_META: &str = "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml";
-const NEOFORGE_META: &str = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
+const FORGE_META: &str =
+    "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml";
+const NEOFORGE_META: &str =
+    "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
 
 fn meta_base(kind: &str) -> Result<&'static str, String> {
     match kind {
@@ -79,7 +81,9 @@ pub async fn versions(kind: &str, mc: &str) -> Result<Vec<String>, String> {
 
 fn pick_default(all: &[String]) -> Option<String> {
     all.iter()
-        .find(|v| !v.contains('-') && !v.contains("beta") && !v.contains("alpha") && !v.contains("pre"))
+        .find(|v| {
+            !v.contains('-') && !v.contains("beta") && !v.contains("alpha") && !v.contains("pre")
+        })
         .or_else(|| all.first())
         .cloned()
 }
@@ -107,7 +111,10 @@ async fn install_with_installer(
     chosen: String,
 ) -> Result<(String, String), String> {
     let (url, guess) = if kind == "forge" {
-        let rest = chosen.strip_prefix(&format!("{mc}-")).unwrap_or(&chosen).to_string();
+        let rest = chosen
+            .strip_prefix(&format!("{mc}-"))
+            .unwrap_or(&chosen)
+            .to_string();
         (
             format!("https://maven.minecraftforge.net/net/minecraftforge/forge/{chosen}/forge-{chosen}-installer.jar"),
             format!("{mc}-forge-{rest}"),
@@ -118,7 +125,11 @@ async fn install_with_installer(
             format!("neoforge-{chosen}"),
         )
     };
-    let label = if kind == "forge" { "Instalando Forge" } else { "Instalando NeoForge" };
+    let label = if kind == "forge" {
+        "Instalando Forge"
+    } else {
+        "Instalando NeoForge"
+    };
     if let Some(a) = &app {
         emit_progress(a, "loader", label, 0, 0);
     }
@@ -160,7 +171,10 @@ async fn install_with_installer(
             String::from_utf8_lossy(&output.stderr)
         );
         let _ = tokio::fs::remove_file(&installer).await;
-        return Err(format!("El instalador de {kind} falló:\n{}", tail(&text, 12)));
+        return Err(format!(
+            "El instalador de {kind} falló:\n{}",
+            tail(&text, 12)
+        ));
     }
     let after = version_dirs();
     let created: Vec<String> = after
@@ -175,7 +189,9 @@ async fn install_with_installer(
             if guess_json.is_file() {
                 guess
             } else {
-                return Err(format!("El instalador terminó pero no se encontró la versión de {kind}"));
+                return Err(format!(
+                    "El instalador terminó pero no se encontró la versión de {kind}"
+                ));
             }
         }
     };
@@ -192,7 +208,8 @@ pub async fn install_profile(
         Some(v) => v,
         None => {
             let all = versions(kind, mc).await?;
-            pick_default(&all).ok_or_else(|| format!("No hay {kind} disponible para Minecraft {mc}"))?
+            pick_default(&all)
+                .ok_or_else(|| format!("No hay {kind} disponible para Minecraft {mc}"))?
         }
     };
     if kind == "forge" || kind == "neoforge" {
@@ -208,7 +225,9 @@ pub async fn install_profile(
         .to_string();
     let dir = paths::versions().join(&id);
     tokio::fs::create_dir_all(&dir).await.ctx()?;
-    tokio::fs::write(dir.join(format!("{id}.json")), &bytes).await.ctx()?;
+    tokio::fs::write(dir.join(format!("{id}.json")), &bytes)
+        .await
+        .ctx()?;
     Ok((id, chosen))
 }
 
@@ -222,7 +241,13 @@ pub async fn ensure(inst: &Instance, app: Option<AppHandle>) -> Result<String, S
     if path.is_file() {
         return Ok(inst.version_id.clone());
     }
-    let (id, _) = install_profile(app, &inst.loader, &inst.mc_version, inst.loader_version.clone()).await?;
+    let (id, _) = install_profile(
+        app,
+        &inst.loader,
+        &inst.mc_version,
+        inst.loader_version.clone(),
+    )
+    .await?;
     Ok(id)
 }
 

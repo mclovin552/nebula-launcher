@@ -7,8 +7,8 @@ mod instances;
 mod java;
 mod launch;
 mod loaders;
-mod modrinth;
 mod modmeta;
+mod modrinth;
 mod mojang;
 mod pack;
 mod paths;
@@ -107,6 +107,49 @@ fn restore_backup(id: String, name: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn list_screenshots(id: String) -> Result<Vec<instances::ScreenItem>, String> {
+    instances::list_screenshots(&id).await
+}
+
+#[tauri::command]
+async fn screenshot_to_icon(id: String, name: String) -> Result<(), String> {
+    instances::screenshot_to_icon(&id, &name).await
+}
+
+#[tauri::command]
+async fn refresh_modpack(app: AppHandle, id: String) -> Result<(), String> {
+    modrinth::refresh_modpack(app, &id).await
+}
+
+#[tauri::command]
+async fn java_needed(id: String) -> Result<u64, String> {
+    let inst = instances::get(&id)?;
+    let vid = loaders::ensure(&inst, None).await?;
+    let (v, _) = mojang::resolve(&vid).await?;
+    Ok(mojang::java_major(&v))
+}
+
+#[tauri::command]
+async fn reorder_instances(id: String, other: String) -> Result<(), String> {
+    instances::reorder(&id, &other)
+}
+
+#[tauri::command]
+async fn skin_lookup(name: String) -> Result<String, String> {
+    wardrobe::lookup_skin(&name).await
+}
+
+#[tauri::command]
+fn app_info() -> Value {
+    serde_json::json!({
+        "name": "Nebula Launcher",
+        "version": env!("CARGO_PKG_VERSION"),
+        "repo": "https://github.com/mclovin552/nebula-launcher",
+        "issues": "https://github.com/mclovin552/nebula-launcher/issues"
+    })
+}
+
+#[tauri::command]
 fn import_files(id: String, kind: String, paths: Vec<String>) -> Result<usize, String> {
     instances::import_files(&id, &kind, paths)
 }
@@ -122,7 +165,11 @@ async fn check_mod_updates(id: String) -> Result<Vec<modrinth::UpdateItem>, Stri
 }
 
 #[tauri::command]
-async fn apply_mod_update(id: String, old_name: String, version_id: String) -> Result<String, String> {
+async fn apply_mod_update(
+    id: String,
+    old_name: String,
+    version_id: String,
+) -> Result<String, String> {
     modrinth::apply_update(&id, &old_name, &version_id).await
 }
 
@@ -135,7 +182,13 @@ async fn export_modpack(id: String, dest: String) -> Result<(), String> {
 async fn import_modpack_file(app: AppHandle, path: String) -> Result<instances::Instance, String> {
     http::reset_cancel();
     let concurrency = settings::load().concurrency;
-    modrinth::install_from_pack(app, std::path::PathBuf::from(path), String::new(), concurrency).await
+    modrinth::install_from_pack(
+        app,
+        std::path::PathBuf::from(path),
+        String::new(),
+        concurrency,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -199,7 +252,10 @@ async fn verify_instance(app: AppHandle, id: String) -> Result<VerifyReport, Str
         })
         .await?;
     }
-    Ok(VerifyReport { checked: total, repaired })
+    Ok(VerifyReport {
+        checked: total,
+        repaired,
+    })
 }
 
 #[tauri::command]
@@ -218,17 +274,16 @@ fn remove_instance_icon(id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn import_instance_zip(
-    app: AppHandle,
-    path: String,
-) -> Result<instances::Instance, String> {
+async fn import_instance_zip(app: AppHandle, path: String) -> Result<instances::Instance, String> {
     http::reset_cancel();
     instances::import_multimc(Some(app), std::path::PathBuf::from(path)).await
 }
 
 #[tauri::command]
 async fn wardrobe_list() -> Result<Vec<wardrobe::SkinEntry>, String> {
-    tokio::task::spawn_blocking(wardrobe::list_skins).await.ctx()
+    tokio::task::spawn_blocking(wardrobe::list_skins)
+        .await
+        .ctx()
 }
 
 #[tauri::command]
@@ -242,7 +297,11 @@ fn wardrobe_remove(id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn wardrobe_apply(account_id: String, skin_id: String, variant: String) -> Result<(), String> {
+async fn wardrobe_apply(
+    account_id: String,
+    skin_id: String,
+    variant: String,
+) -> Result<(), String> {
     wardrobe::apply_saved_skin(&account_id, &skin_id, &variant).await
 }
 
@@ -257,12 +316,22 @@ async fn cape_set(account_id: String, cape_id: Option<String>) -> Result<(), Str
 }
 
 #[tauri::command]
-async fn offline_skin_apply(app: AppHandle, instance_id: String, player: String, skin_id: String) -> Result<(), String> {
+async fn offline_skin_apply(
+    app: AppHandle,
+    instance_id: String,
+    player: String,
+    skin_id: String,
+) -> Result<(), String> {
     wardrobe::local_skin(app, &instance_id, &player, &skin_id).await
 }
 
 #[tauri::command]
-async fn offline_cape_apply(app: AppHandle, instance_id: String, player: String, path: String) -> Result<(), String> {
+async fn offline_cape_apply(
+    app: AppHandle,
+    instance_id: String,
+    player: String,
+    path: String,
+) -> Result<(), String> {
     wardrobe::local_cape(app, &instance_id, &player, &path).await
 }
 
@@ -278,7 +347,9 @@ async fn check_launcher_update() -> Result<UpdateInfo, String> {
     let repo = settings::load().update_repo;
     let repo = repo.trim().to_string();
     let valid = repo.split('/').count() == 2
-        && repo.chars().all(|c| c.is_ascii_alphanumeric() || c == '/' || c == '-' || c == '_' || c == '.');
+        && repo
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '/' || c == '-' || c == '_' || c == '.');
     if !valid {
         return Ok(UpdateInfo {
             available: false,
@@ -286,7 +357,10 @@ async fn check_launcher_update() -> Result<UpdateInfo, String> {
             url: String::new(),
         });
     }
-    let v: Value = http::get_json(&format!("https://api.github.com/repos/{repo}/releases/latest")).await?;
+    let v: Value = http::get_json(&format!(
+        "https://api.github.com/repos/{repo}/releases/latest"
+    ))
+    .await?;
     let tag = v
         .get("tag_name")
         .and_then(|t| t.as_str())
@@ -488,7 +562,8 @@ async fn install_modpack(
 
 #[tauri::command]
 async fn patch_notes() -> Result<Vec<Value>, String> {
-    let v: Value = http::get_json("https://launchercontent.mojang.com/v2/javaPatchNotes.json").await?;
+    let v: Value =
+        http::get_json("https://launchercontent.mojang.com/v2/javaPatchNotes.json").await?;
     let entries = v
         .get("entries")
         .and_then(|e| e.as_array())
@@ -498,18 +573,15 @@ async fn patch_notes() -> Result<Vec<Value>, String> {
         .into_iter()
         .take(8)
         .map(|e| {
-            let image = e
-                .pointer("/image/url")
-                .and_then(|u| u.as_str())
-                .map(|u| {
-                    if u.starts_with("http") {
-                        u.to_string()
-                    } else if u.starts_with("/v2/") {
-                        format!("https://launchercontent.mojang.com{u}")
-                    } else {
-                        format!("https://launchercontent.mojang.com/v2{u}")
-                    }
-                });
+            let image = e.pointer("/image/url").and_then(|u| u.as_str()).map(|u| {
+                if u.starts_with("http") {
+                    u.to_string()
+                } else if u.starts_with("/v2/") {
+                    format!("https://launchercontent.mojang.com{u}")
+                } else {
+                    format!("https://launchercontent.mojang.com/v2{u}")
+                }
+            });
             json!({
                 "title": e.get("title"),
                 "version": e.get("version"),
@@ -587,6 +659,13 @@ fn main() {
             set_servers,
             backup_worlds,
             restore_backup,
+            list_screenshots,
+            screenshot_to_icon,
+            refresh_modpack,
+            java_needed,
+            app_info,
+            reorder_instances,
+            skin_lookup,
             import_files,
             crash_report,
             check_mod_updates,

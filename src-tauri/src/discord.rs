@@ -1,5 +1,6 @@
 use serde_json::json;
 use std::io::Write;
+#[cfg(unix)]
 use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -16,6 +17,7 @@ fn app_id() -> String {
     }
 }
 
+#[cfg(unix)]
 fn socket_path() -> Option<std::path::PathBuf> {
     let base = std::env::var("XDG_RUNTIME_DIR").ok().or_else(|| {
         let status = std::fs::read_to_string("/proc/self/status").ok()?;
@@ -45,6 +47,7 @@ fn nonce() -> String {
     format!("nebula-{n}")
 }
 
+#[cfg(unix)]
 fn write_frame(socket: &mut UnixStream, op: u32, payload: &[u8]) -> std::io::Result<()> {
     let mut buf = Vec::with_capacity(8 + payload.len());
     buf.extend(op.to_le_bytes());
@@ -53,6 +56,7 @@ fn write_frame(socket: &mut UnixStream, op: u32, payload: &[u8]) -> std::io::Res
     socket.write_all(&buf)
 }
 
+#[cfg(unix)]
 fn drain(socket: &UnixStream) {
     if let Ok(mut clone) = socket.try_clone() {
         clone.set_nonblocking(true).ok();
@@ -66,9 +70,11 @@ fn drain(socket: &UnixStream) {
     }
 }
 
+#[cfg(unix)]
 fn send_activity(app_id: &str, activity_value: serde_json::Value) -> std::io::Result<()> {
-    let path = socket_path()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Discord no está en ejecución"))?;
+    let path = socket_path().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::NotFound, "Discord no está en ejecución")
+    })?;
     let mut socket = UnixStream::connect(&path)?;
 
     let hello = json!({"v": 1, "client_id": app_id}).to_string();
@@ -86,6 +92,14 @@ fn send_activity(app_id: &str, activity_value: serde_json::Value) -> std::io::Re
     .to_string();
     write_frame(&mut socket, 1, payload.as_bytes())?;
     socket.flush()
+}
+
+#[cfg(not(unix))]
+fn send_activity(_app_id: &str, _activity_value: serde_json::Value) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "sin soporte",
+    ))
 }
 
 pub fn start(details: String, state: String) {

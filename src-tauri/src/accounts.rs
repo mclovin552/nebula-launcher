@@ -4,11 +4,11 @@ use crate::settings::{self, DEFAULT_MS_CLIENT_ID};
 use crate::util::{now_millis, now_secs, Ctx};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::net::TcpListener;
 use std::io::{Read, Write};
-use std::thread;
+use std::net::TcpListener;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::Duration;
 
 const TOKEN_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
@@ -65,13 +65,18 @@ fn url_decode(s: &str) -> String {
     out
 }
 
-fn start_local_server() -> Result<(u16, Arc<Mutex<Option<String>>>, Arc<Mutex<Option<String>>>, Arc<AtomicBool>), String> {
+fn start_local_server() -> Result<
+    (
+        u16,
+        Arc<Mutex<Option<String>>>,
+        Arc<Mutex<Option<String>>>,
+        Arc<AtomicBool>,
+    ),
+    String,
+> {
     let listener = TcpListener::bind("127.0.0.1:0")
         .map_err(|e| format!("No se pudo abrir el servidor local (localhost): {e}"))?;
-    let port = listener
-        .local_addr()
-        .map_err(|e| e.to_string())?
-        .port();
+    let port = listener.local_addr().map_err(|e| e.to_string())?.port();
     let _ = listener.set_nonblocking(true);
 
     let code: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
@@ -195,8 +200,15 @@ fn save_store(store: &Store) -> Result<(), String> {
     let data = serde_json::to_vec_pretty(store).ctx()?;
     let path = paths::root().join("accounts.json");
     std::fs::write(&path, data).ctx()?;
-    use std::os::unix::fs::PermissionsExt;
-    let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = &path;
+    }
     Ok(())
 }
 
@@ -230,7 +242,9 @@ pub fn add_offline(name: &str) -> Result<AccountView, String> {
         && name.len() <= 16
         && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
     if !valid {
-        return Err("El nombre debe tener de 3 a 16 caracteres: letras, números o guion bajo".to_string());
+        return Err(
+            "El nombre debe tener de 3 a 16 caracteres: letras, números o guion bajo".to_string(),
+        );
     }
     let mut store = load_store();
     let acc = Account {
@@ -269,10 +283,11 @@ pub fn select(id: &str) -> Result<(), String> {
 
 pub async fn begin() -> Result<OAuthStart, String> {
     let settings = settings::load();
-    let client_id = if settings.ms_client_id.trim().is_empty() {
+    let saved = settings.ms_client_id.trim();
+    let client_id = if saved.is_empty() || saved.chars().all(|c| c == '0' || c == '-') {
         DEFAULT_MS_CLIENT_ID.to_string()
     } else {
-        settings.ms_client_id.clone()
+        saved.to_string()
     };
 
     let (port, code, error, done) = start_local_server()?;
@@ -389,7 +404,33 @@ async fn minecraft_chain(ms_token: &str) -> Result<Minecraft, String> {
         .and_then(|t| t.as_str())
         .ok_or("Respuesta de Minecraft inválida")?
         .to_string();
-    let expires_in = mc.get("expires_in").and_then(|e| e.as_u64()).unwrap_or(86400);
+    let expires_in = mc
+        .get("expires_in")
+        .and_then(|e| e.as_u64())
+        .unwrap_or(86400);
+
+    let ent = client()
+        .get("https://api.minecraftservices.com/entitlements/mcstore")
+        .bearer_auth(&token)
+        .timeout(Duration::from_secs(40))
+        .send()
+        .await
+        .ctx()?;
+    let owns_game = if ent.status().is_success() {
+        let ev: Value = ent.json().await.ctx().unwrap_or(Value::Null);
+        ev.get("items")
+            .and_then(|i| i.as_array())
+            .map(|a| !a.is_empty())
+            .unwrap_or(true)
+    } else {
+        true
+    };
+    if !owns_game {
+        return Err(
+            "Esta cuenta de Microsoft no tiene Minecraft Java Edition comprado. Cómpralo o activa Game Pass en minecraft.net e inténtalo de nuevo."
+                .to_string(),
+        );
+    }
 
     let prof = client()
         .get("https://api.minecraftservices.com/minecraft/profile")
@@ -495,7 +536,9 @@ pub async fn finish() -> Result<AccountView, String> {
             .get("error_description")
             .and_then(|d| d.as_str())
             .unwrap_or("error desconocido");
-        return Err(format!("No se pudo canjear el código de autorización: {desc}"));
+        return Err(format!(
+            "No se pudo canjear el código de autorización: {desc}"
+        ));
     }
     let at = body
         .get("access_token")
@@ -525,10 +568,12 @@ pub async fn resolve_for_launch(requested: Option<String>) -> Result<Account, St
     if acc.kind != "microsoft" || acc.expires_at > now_secs() + 120 {
         return Ok(acc);
     }
-    let client_id = settings::load().ms_client_id;
-    if client_id.trim().is_empty() {
-        return Err("La sesión caducó y falta el Client ID de Azure en Ajustes".to_string());
-    }
+    let saved = settings::load().ms_client_id.trim().to_string();
+    let client_id = if saved.is_empty() || saved.chars().all(|c| c == '0' || c == '-') {
+        DEFAULT_MS_CLIENT_ID.to_string()
+    } else {
+        saved
+    };
     let resp = client()
         .post(TOKEN_URL)
         .form(&[
@@ -543,7 +588,9 @@ pub async fn resolve_for_launch(requested: Option<String>) -> Result<Account, St
     let status = resp.status();
     let body: Value = resp.json().await.ctx()?;
     if !status.is_success() {
-        return Err("La sesión de Microsoft caducó. Vuelve a iniciar sesión en Cuentas.".to_string());
+        return Err(
+            "La sesión de Microsoft caducó. Vuelve a iniciar sesión en Cuentas.".to_string(),
+        );
     }
     let at = body
         .get("access_token")
@@ -581,7 +628,10 @@ pub async fn change_skin(account_id: &str, path: &str, variant: &str) -> Result<
         return Err("Solo las cuentas Microsoft pueden cambiar de skin".to_string());
     }
     let bytes = tokio::fs::read(path).await.ctx()?;
-    if bytes.len() > 1_000_000 || bytes.len() < 8 || bytes[..8] != [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a] {
+    if bytes.len() > 1_000_000
+        || bytes.len() < 8
+        || bytes[..8] != [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]
+    {
         return Err("La skin debe ser un archivo PNG de menos de 1 MB".to_string());
     }
     let part = reqwest::multipart::Part::bytes(bytes)

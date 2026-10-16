@@ -28,9 +28,7 @@ pub async fn get_json<T: DeserializeOwned>(url: &str) -> Result<T, String> {
         .send()
         .await
         .map_err(|e| format!("{url}: {e}"))?;
-    let resp = resp
-        .error_for_status()
-        .map_err(|e| format!("{url}: {e}"))?;
+    let resp = resp.error_for_status().map_err(|e| format!("{url}: {e}"))?;
     resp.json::<T>().await.map_err(|e| format!("{url}: {e}"))
 }
 
@@ -41,10 +39,11 @@ pub async fn get_bytes(url: &str) -> Result<Vec<u8>, String> {
         .send()
         .await
         .map_err(|e| format!("{url}: {e}"))?;
-    let resp = resp
-        .error_for_status()
-        .map_err(|e| format!("{url}: {e}"))?;
+    let resp = resp.error_for_status().map_err(|e| format!("{url}: {e}"))?;
     let bytes = resp.bytes().await.map_err(|e| format!("{url}: {e}"))?;
+    if bytes.len() > 16 * 1024 * 1024 {
+        return Err("El archivo descargado es demasiado grande".to_string());
+    }
     Ok(bytes.to_vec())
 }
 
@@ -130,7 +129,11 @@ async fn fetch_to(job: &Job) -> Result<(), String> {
     let tmp = PathBuf::from(format!("{}.part", job.path.display()));
     let mut hasher = Sha1::new();
     let mut existing: u64 = 0;
-    if tokio::fs::metadata(&tmp).await.map(|m| m.len() > 0).unwrap_or(false) {
+    if tokio::fs::metadata(&tmp)
+        .await
+        .map(|m| m.len() > 0)
+        .unwrap_or(false)
+    {
         if let Some((h, len)) = partial_state(&tmp).await {
             hasher = h;
             existing = len;
@@ -152,7 +155,11 @@ async fn fetch_to(job: &Job) -> Result<(), String> {
         hasher = Sha1::new();
     }
     let mut file = if resumed {
-        tokio::fs::OpenOptions::new().append(true).open(&tmp).await.ctx()?
+        tokio::fs::OpenOptions::new()
+            .append(true)
+            .open(&tmp)
+            .await
+            .ctx()?
     } else {
         tokio::fs::File::create(&tmp).await.ctx()?
     };

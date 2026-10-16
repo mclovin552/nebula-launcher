@@ -20,10 +20,12 @@ pub struct Settings {
     pub language: String,
     pub update_repo: String,
     pub close_to_tray: bool,
+    pub auto_backup_minutes: u32,
+    pub theme: String,
     pub discord_app_id: String,
 }
 
-pub const DEFAULT_MS_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000000";
+pub const DEFAULT_MS_CLIENT_ID: &str = "c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb";
 
 pub fn total_memory_mb() -> u64 {
     let Ok(text) = std::fs::read_to_string("/proc/meminfo") else {
@@ -63,6 +65,8 @@ impl Default for Settings {
             language: "es".to_string(),
             update_repo: String::new(),
             close_to_tray: true,
+            auto_backup_minutes: 0,
+            theme: "dark".to_string(),
             discord_app_id: std::env::var("NEBULA_DISCORD_APP_ID").unwrap_or_default(),
         }
     }

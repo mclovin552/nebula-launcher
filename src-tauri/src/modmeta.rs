@@ -26,8 +26,16 @@ pub fn b64(data: &[u8]) -> String {
         let n = (b0 << 16) | (b1 << 8) | b2;
         out.push(T[((n >> 18) & 63) as usize] as char);
         out.push(T[((n >> 12) & 63) as usize] as char);
-        out.push(if chunk.len() > 1 { T[((n >> 6) & 63) as usize] as char } else { '=' });
-        out.push(if chunk.len() > 2 { T[(n & 63) as usize] as char } else { '=' });
+        out.push(if chunk.len() > 1 {
+            T[((n >> 6) & 63) as usize] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            T[(n & 63) as usize] as char
+        } else {
+            '='
+        });
     }
     out
 }
@@ -58,7 +66,10 @@ pub fn toml_value(text: &str, key: &str) -> Option<String> {
         };
         let val = val.trim();
         if val.starts_with("'''") || val.starts_with("\"\"\"") {
-            let inner = val.trim_start_matches("'''").trim_start_matches("\"\"\"").trim();
+            let inner = val
+                .trim_start_matches("'''")
+                .trim_start_matches("\"\"\"")
+                .trim();
             if !inner.is_empty() {
                 return Some(
                     inner
@@ -99,7 +110,7 @@ pub fn read(path: &Path) -> Option<ModMeta> {
                 Some(Value::Object(o)) => o
                     .values()
                     .filter_map(|x| x.as_str())
-                    .last()
+                    .next_back()
                     .map(|s| s.to_string()),
                 _ => None,
             };
@@ -116,7 +127,10 @@ pub fn read(path: &Path) -> Option<ModMeta> {
         if let Ok(v) = serde_json::from_slice::<Value>(&raw) {
             let loader = v.get("quilt_loader").cloned().unwrap_or(Value::Null);
             let meta = loader.get("metadata").cloned().unwrap_or(Value::Null);
-            let icon_path = meta.get("icon").and_then(|i| i.as_str()).map(|s| s.to_string());
+            let icon_path = meta
+                .get("icon")
+                .and_then(|i| i.as_str())
+                .map(|s| s.to_string());
             let icon = icon_path.and_then(|p| icon(&mut zip, &p));
             return Some(ModMeta {
                 title: text(&meta, "name").or_else(|| text(&loader, "id")),
@@ -158,7 +172,10 @@ mod tests {
         let t = "displayName=\"Sodium\"\nversion=\"1.2.3\"\ndescription='''\nFast renderer\n'''\n";
         assert_eq!(toml_value(t, "displayName").as_deref(), Some("Sodium"));
         assert_eq!(toml_value(t, "version").as_deref(), Some("1.2.3"));
-        assert_eq!(toml_value(t, "description").as_deref(), Some("Fast renderer"));
+        assert_eq!(
+            toml_value(t, "description").as_deref(),
+            Some("Fast renderer")
+        );
         assert_eq!(toml_value("versionRange=\"[1,2)\"\n", "version"), None);
     }
 }
