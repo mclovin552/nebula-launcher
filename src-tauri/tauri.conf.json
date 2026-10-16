@@ -1,0 +1,32 @@
+{
+  "productName": "Nebula Launcher",
+  "version": "1.0.0",
+  "identifier": "dev.nebula.launcher",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Nebula Launcher",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 1000,
+        "minHeight": 640,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Game",
+    "shortDescription": "Lanzador de Minecraft Java",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png"]
+  }
+}

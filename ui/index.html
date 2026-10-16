@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nebula Launcher</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <nav id="rail" aria-label="Navegación principal"></nav>
+  <main id="stage">
+    <header id="topbar">
+      <div id="crumb"></div>
+      <button id="account-chip" data-act="nav" data-view="accounts" aria-label="Cuenta activa"></button>
+    </header>
+    <section id="view" tabindex="-1"></section>
+  </main>
+</div>
+<div id="dock" hidden></div>
+<div id="toasts" aria-live="polite"></div>
+<div id="modal" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
