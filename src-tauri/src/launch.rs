@@ -120,6 +120,26 @@ pub fn parse_env(text: &str) -> Vec<(String, String)> {
     out
 }
 
+#[cfg(windows)]
+fn hide_tokio(c: &mut tokio::process::Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    c.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_tokio(_c: &mut tokio::process::Command) {}
+
+#[cfg(windows)]
+fn hide_std(c: &mut std::process::Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    c.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_std(_c: &mut std::process::Command) {}
+
 async fn run_shell(script: &str, cwd: &Path, env: &[(String, String)]) -> Result<(), String> {
     let mut c = if cfg!(windows) {
         let mut c = tokio::process::Command::new("cmd");
@@ -131,6 +151,7 @@ async fn run_shell(script: &str, cwd: &Path, env: &[(String, String)]) -> Result
         c
     };
     c.current_dir(cwd);
+    hide_tokio(&mut c);
     for (k, v) in env {
         c.env(k, v);
     }
@@ -364,9 +385,9 @@ pub async fn run(
     for (k, v) in &env_pairs {
         cmd.env(k, v);
     }
-    cmd.args(&full)
-        .current_dir(&game_dir)
-        .stdin(Stdio::null())
+    cmd.args(&full).current_dir(&game_dir);
+    hide_tokio(&mut cmd);
+    cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
@@ -474,7 +495,9 @@ pub fn stop(running: &Arc<Mutex<HashMap<String, u32>>>, instance_id: &str) -> Re
         .ok()
         .and_then(|r| r.get(instance_id).copied())
         .ok_or("La instancia no está en ejecución")?;
-    std::process::Command::new(if cfg!(windows) { "taskkill" } else { "kill" })
+    let mut kill_cmd = std::process::Command::new(if cfg!(windows) { "taskkill" } else { "kill" });
+    hide_std(&mut kill_cmd);
+    kill_cmd
         .args(if cfg!(windows) {
             vec![
                 "/PID".to_string(),

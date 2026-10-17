@@ -1,5 +1,5 @@
 use serde_json::json;
-use std::io::Write;
+use std::io::{Read, Write};
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -14,6 +14,72 @@ fn app_id() -> String {
         s
     } else {
         String::new()
+    }
+}
+
+enum Pipe {
+    #[cfg(unix)]
+    Unix(UnixStream),
+    #[cfg(windows)]
+    Win(std::fs::File),
+}
+
+impl Pipe {
+    fn connect() -> std::io::Result<Pipe> {
+        #[cfg(unix)]
+        {
+            let path = socket_path().ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::NotFound, "Discord no está en ejecución")
+            })?;
+            Ok(Pipe::Unix(UnixStream::connect(path)?))
+        }
+        #[cfg(windows)]
+        {
+            for n in 0..10 {
+                let path = format!("\\\\.\\pipe\\discord-ipc-{n}");
+                if let Ok(file) = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&path)
+                {
+                    return Ok(Pipe::Win(file));
+                }
+            }
+            Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Discord no está en ejecución",
+            ))
+        }
+    }
+}
+
+impl Write for Pipe {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match self {
+            #[cfg(unix)]
+            Pipe::Unix(s) => s.write(buf),
+            #[cfg(windows)]
+            Pipe::Win(f) => f.write(buf),
+        }
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        match self {
+            #[cfg(unix)]
+            Pipe::Unix(s) => s.flush(),
+            #[cfg(windows)]
+            Pipe::Win(f) => f.flush(),
+        }
+    }
+}
+
+impl std::io::Read for Pipe {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match self {
+            #[cfg(unix)]
+            Pipe::Unix(s) => s.read(buf),
+            #[cfg(windows)]
+            Pipe::Win(f) => f.read(buf),
+        }
     }
 }
 
@@ -46,43 +112,25 @@ fn nonce() -> String {
         .unwrap_or(0);
     format!("nebula-{n}")
 }
-
-#[cfg(unix)]
-fn write_frame(socket: &mut UnixStream, op: u32, payload: &[u8]) -> std::io::Result<()> {
+fn write_frame(pipe: &mut Pipe, op: u32, payload: &[u8]) -> std::io::Result<()> {
     let mut buf = Vec::with_capacity(8 + payload.len());
     buf.extend(op.to_le_bytes());
     buf.extend((payload.len() as u32).to_le_bytes());
     buf.extend_from_slice(payload);
-    socket.write_all(&buf)
+    pipe.write_all(&buf)
 }
 
-#[cfg(unix)]
-fn drain(socket: &UnixStream) {
-    if let Ok(mut clone) = socket.try_clone() {
-        clone.set_nonblocking(true).ok();
-        let mut byte = [0u8; 4096];
-        loop {
-            match std::io::Read::read(&mut clone, &mut byte) {
-                Ok(n) if n > 0 => continue,
-                _ => break,
-            }
-        }
-    }
+fn drain(pipe: &mut Pipe) {
+    let mut buf = [0u8; 4096];
+    let _ = pipe.read(&mut buf);
 }
 
-#[cfg(unix)]
 fn send_activity(app_id: &str, activity_value: serde_json::Value) -> std::io::Result<()> {
-    let path = socket_path().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::NotFound, "Discord no está en ejecución")
-    })?;
-    let mut socket = UnixStream::connect(&path)?;
+    let mut pipe = Pipe::connect()?;
 
     let hello = json!({"v": 1, "client_id": app_id}).to_string();
-    write_frame(&mut socket, 0, hello.as_bytes())?;
-    use std::io::Read;
-    let mut buf = [0u8; 4096];
-    let _ = socket.read(&mut buf);
-    drain(&socket);
+    write_frame(&mut pipe, 0, hello.as_bytes())?;
+    drain(&mut pipe);
 
     let payload = json!({
         "cmd": "SET_ACTIVITY",
@@ -90,16 +138,8 @@ fn send_activity(app_id: &str, activity_value: serde_json::Value) -> std::io::Re
         "nonce": nonce()
     })
     .to_string();
-    write_frame(&mut socket, 1, payload.as_bytes())?;
-    socket.flush()
-}
-
-#[cfg(not(unix))]
-fn send_activity(_app_id: &str, _activity_value: serde_json::Value) -> std::io::Result<()> {
-    Err(std::io::Error::new(
-        std::io::ErrorKind::NotFound,
-        "sin soporte",
-    ))
+    write_frame(&mut pipe, 1, payload.as_bytes())?;
+    pipe.flush()
 }
 
 pub fn start(details: String, state: String) {
@@ -158,4 +198,5 @@ pub fn start(details: String, state: String) {
 
 pub fn stop() {
     DONE.store(true, Ordering::SeqCst);
+    RUNNING.store(false, Ordering::SeqCst);
 }
