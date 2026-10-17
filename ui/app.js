@@ -156,6 +156,7 @@ const EN = {
   'Instalando Forge': 'Installing Forge', 'Instalando NeoForge': 'Installing NeoForge', 'Buscando versión del modpack': 'Looking up modpack version', 'Descargando modpack': 'Downloading modpack',
   'Creando instancia': 'Creating instance', 'Descargando contenido del modpack': 'Downloading modpack content', 'Modpack instalado': 'Modpack installed',
   'Español': 'Spanish', 'Inglés': 'English', 'Añadir cuenta': 'Add account',
+  'Bosque': 'Forest', 'Océano': 'Ocean',
   'Optimizar': 'Optimize', 'Optimizando…': 'Optimizing…', 'Optimizando instancia': 'Optimizing instance', 'Instancia optimizada': 'Instance optimized',
   'mod(s) de rendimiento': 'performance mod(s)', 'Detalles': 'Details', 'Galería': 'Gallery', 'Descripción': 'Description',
   'Verificar y reparar': 'Verify and repair', 'Verificando archivos': 'Verifying files', 'Reparando archivos': 'Repairing files',
@@ -237,6 +238,7 @@ const PT = {
   'Instalando Forge': 'Instalando Forge', 'Instalando NeoForge': 'Instalando NeoForge', 'Buscando versión del modpack': 'Procurando versão do modpack', 'Descargando modpack': 'Baixando modpack',
   'Creando instancia': 'Criando instância', 'Descargando contenido del modpack': 'Baixando conteúdo do modpack', 'Modpack instalado': 'Modpack instalado',
   'Español': 'Espanhol', 'Inglés': 'Inglês', 'Português': 'Português', 'Añadir cuenta': 'Adicionar conta',
+  'Bosque': 'Floresta', 'Océano': 'Oceano',
   'Optimizar': 'Otimizar', 'Optimizando…': 'Otimizando…', 'Optimizando instancia': 'Otimizando instância', 'Instancia optimizada': 'Instância otimizada',
   'mod(s) de rendimiento': 'mod(s) de desempenho', 'Detalles': 'Detalhes', 'Galería': 'Galeria', 'Descripción': 'Descrição',
   'Verificar y reparar': 'Verificar e reparar', 'Verificando archivos': 'Verificando arquivos', 'Reparando archivos': 'Reparando arquivos',
@@ -318,6 +320,7 @@ const FR = {
   'Instalando Forge': 'Installation de Forge', 'Instalando NeoForge': 'Installation de NeoForge', 'Buscando versión del modpack': 'Recherche de la version du modpack', 'Descargando modpack': 'Téléchargement du modpack',
   'Creando instancia': 'Création de l’instance', 'Descargando contenido del modpack': 'Téléchargement du contenu du modpack', 'Modpack instalado': 'Modpack installé',
   'Español': 'Espagnol', 'Inglés': 'Anglais', 'Português': 'Portugais', 'Añadir cuenta': 'Ajouter un compte',
+  'Bosque': 'Forêt', 'Océano': 'Océan',
   'Optimizar': 'Optimiser', 'Optimizando…': 'Optimisation…', 'Optimizando instancia': 'Optimisation de l’instance', 'Instancia optimizada': 'Instance optimisée',
   'mod(s) de rendimiento': 'mod(s) de performance', 'Detalles': 'Détails', 'Galería': 'Galerie', 'Descripción': 'Description',
   'Verificar y reparar': 'Vérifier et réparer', 'Verificando archivos': 'Vérification des fichiers', 'Reparando archivos': 'Réparation des fichiers',
@@ -381,8 +384,10 @@ function viewTheme() {
 }
 
 function applyTheme() {
-  document.body.classList.toggle('light', viewTheme() === 'light');
-  document.body.classList.toggle('contrast', viewTheme() === 'contrast');
+  ['light', 'contrast', 'forest', 'oceano'].forEach((t) => document.body.classList.toggle(t, viewTheme() === t));
+}
+function themeLabel(t) {
+  return { dark: 'Aurora oscuro', light: 'Aurora claro', contrast: 'Blanco y negro (elegante)', forest: 'Bosque', oceano: 'Océano' }[t] || '';
 }
 
 let AC = null;
@@ -476,6 +481,35 @@ function renderView() {
   }
   if (S.view === 'console') scrollConsole();
   if (S.view === 'settings') bindSettings();
+  if (S.view === 'instances') setTimeout(decorateJavaChips, 80);
+}
+
+let javaChipBusy = false;
+async function decorateJavaChips() {
+  if (javaChipBusy) return;
+  javaChipBusy = true;
+  S.javaChip = S.javaChip || {};
+  const nodes = [...document.querySelectorAll('.jchip[data-jid]')];
+  for (const el of nodes) {
+    const id = el.dataset.jid;
+    const st = S.javaChip[id];
+    if (st) { fillJavaChip(el, st); continue; }
+    try {
+      const s = await api('java_status', { id }, true);
+      if (S.view !== 'instances') { javaChipBusy = false; return; }
+      S.javaChip[id] = s;
+      fillJavaChip(el, s);
+    } catch (_) {
+      el.remove();
+    }
+  }
+  javaChipBusy = false;
+}
+
+function fillJavaChip(el, s) {
+  el.textContent = s.ready ? `☕ Java ${s.major} listo` : `☕ falta Java ${s.major}`;
+  el.title = s.ready ? 'El Java correcto ya está disponible' : 'Se instalará automáticamente al jugar';
+  el.style.color = s.ready ? 'var(--ok)' : 'var(--glow)';
 }
 
 function viewHome() {
@@ -489,7 +523,7 @@ function viewHome() {
     : '';
   const hero = inst
     ? `<div class="hero-title stack" style="gap:10px">
-         <div class="row wrap">${saludo}<span class="chip">Minecraft ${esc(inst.mc_version)}</span><span class="chip">${LOADER_NAME[inst.loader] || esc(inst.loader)}${inst.loader_version ? ' ' + esc(inst.loader_version) : ''}</span>${inst.last_played ? '<span class="chip">⏳ Continuar donde lo dejaste</span>' : ''}</div>
+         <div class="row wrap">${saludo}<button class="chip" data-act="catalog" style="cursor:pointer" title="Ver modpacks de Modrinth">🧳 Catálogo de modpacks</button><span class="chip">Minecraft ${esc(inst.mc_version)}</span><span class="chip">${LOADER_NAME[inst.loader] || esc(inst.loader)}${inst.loader_version ? ' ' + esc(inst.loader_version) : ''}</span>${inst.last_played ? '<span class="chip">⏳ Continuar donde lo dejaste</span>' : ''}</div>
          <h1>${esc(inst.name)}</h1>
        </div>
        <button class="btn primary play" data-act="${playing ? 'stop' : 'play'}" data-id="${esc(inst.id)}">${ic(playing ? 'stop' : 'play')}${playing ? 'Detener' : 'Jugar'}</button>`
@@ -598,7 +632,7 @@ function instanceCard(i) {
   const playing = S.running.has(i.id);
   return `<div class="card with-cover ${playing ? 'playing' : ''}" draggable="true" data-id="${esc(i.id)}">
     ${i.icon ? `<img class="cover" src="${esc(i.icon)}" alt="">` : `<div class="inst-top a${i.accent % 6}"></div>`}
-    <div><h3 class="ellipsis">${esc(i.name)}</h3><span class="muted">${esc(i.mc_version)} · ${LOADER_NAME[i.loader] || esc(i.loader)}${i.loader_version ? ' ' + esc(i.loader_version.replace(i.mc_version + '-', '')) : ''}</span>${playing ? '<span class="chip" style="margin-left:6px">▶ EN JUEGO</span>' : ''}<br><span class="muted" style="font-size:12.5px">Tiempo jugado: ${fmtPlaytime(i.playtime)}</span></div>
+    <div><h3 class="ellipsis">${esc(i.name)}</h3><span class="chip jchip" data-jid="${esc(i.id)}" title="Java de esta versión">☕…</span><span class="muted">${esc(i.mc_version)} · ${LOADER_NAME[i.loader] || esc(i.loader)}${i.loader_version ? ' ' + esc(i.loader_version.replace(i.mc_version + '-', '')) : ''}</span>${playing ? '<span class="chip" style="margin-left:6px">▶ EN JUEGO</span>' : ''}<br><span class="muted" style="font-size:12.5px">Tiempo jugado: ${fmtPlaytime(i.playtime)}</span></div>
     <div class="row wrap">
       <button class="btn small primary" data-act="${playing ? 'stop' : 'play'}" data-id="${esc(i.id)}">${ic(playing ? 'stop' : 'play')}${playing ? 'Detener' : 'Jugar'}</button>
       <button class="btn small" data-act="content" data-id="${esc(i.id)}">${ic('list')}Contenido</button>
@@ -627,7 +661,7 @@ function viewInstances() {
         ${fav && (fav.playtime || 0) > 0 ? `<span>⭐ <b>${esc(fav.name)}</b> <span class="muted">${fmtPlaytime(fav.playtime)}</span></span>` : ''}
       </div>`
     : '';
-  return `<div class="row between wrap" style="margin-bottom:20px"><h1>Instancias</h1><div class="row"><button class="btn" data-act="import-instance">${ic('down')}Importar instancia</button><button class="btn" data-act="import-pack">${ic('down')}Importar modpack</button><button class="btn primary" data-act="new-instance">${ic('plus')}Nueva instancia</button></div></div>
+  return `<div class="row between wrap" style="margin-bottom:20px"><h1>Instancias</h1><div class="row"><button class="btn" data-act="catalog" title="Ver modpacks de Modrinth">🧳 Catálogo</button><button class="btn" data-act="import-instance">${ic('down')}Importar instancia</button><button class="btn" data-act="import-pack">${ic('down')}Importar modpack</button><button class="btn primary" data-act="new-instance">${ic('plus')}Nueva instancia</button></div></div>
     ${stats}
     ${S.instances.length ? body : `<div class="empty"><h3>Aún no tienes instancias</h3><p>Cada instancia tiene sus propios mods, mundos y ajustes.</p><button class="btn primary" data-act="new-instance">${ic('plus')}Crear instancia</button></div>`}`;
 }
@@ -776,7 +810,7 @@ function viewSettings() {
       <div class="panel stack">
         <h2>Aplicación</h2>
         <label class="field"><span>Idioma</span><select id="s-lang"><option value="es" ${s.language === 'es' ? 'selected' : ''}>Español</option><option value="en" ${s.language === 'en' ? 'selected' : ''}>Inglés</option><option value="pt" ${s.language === 'pt' ? 'selected' : ''}>Português</option><option value="fr" ${s.language === 'fr' ? 'selected' : ''}>Français</option></select></label>
-        <label class="field"><span>Interfaz</span><select id="s-theme"><option value="dark" ${viewTheme() === 'dark' ? 'selected' : ''}>Aurora oscuro</option><option value="light" ${viewTheme() === 'light' ? 'selected' : ''}>Aurora claro</option><option value="contrast" ${viewTheme() === 'contrast' ? 'selected' : ''}>Blanco y negro (elegante)</option></select></label>
+        <label class="field"><span>Interfaz</span><select id="s-theme"><option value="dark" ${viewTheme() === 'dark' ? 'selected' : ''}>Aurora oscuro</option><option value="light" ${viewTheme() === 'light' ? 'selected' : ''}>Aurora claro</option><option value="contrast" ${viewTheme() === 'contrast' ? 'selected' : ''}>Blanco y negro (elegante)</option><option value="forest" ${viewTheme() === 'forest' ? 'selected' : ''}>Bosque</option><option value="oceano" ${viewTheme() === 'oceano' ? 'selected' : ''}>Océano</option></select></label>
         <label class="row"><input type="checkbox" id="s-sound" ${localStorage.getItem('nebula-sound') !== '0' ? 'checked' : ''}> <span class="muted">Sonidos del launcher (inicio y fin de partida)</span></label>
         <label class="field"><span>Repositorio de actualizaciones (usuario/repo en GitHub)</span><input type="text" id="s-repo" value="${esc(s.update_repo)}" placeholder="usuario/nebula-launcher"></label>
         <label class="row"><input type="checkbox" id="s-tray" ${s.close_to_tray !== false ? 'checked' : ''}> <span class="muted">Minimizar a la bandeja del sistema al cerrar la ventana</span></label>
@@ -1426,6 +1460,14 @@ function onProgress(p) {
 
 const actions = {
   nav: (d) => setView(d.view),
+  catalog: () => {
+    S.discover.kind = 'modpack';
+    S.discover.items = [];
+    if ('page' in S.discover) S.discover.page = 1;
+    S.discover.target = S.activeInstance || '';
+    setView('discover');
+  },
+
   close: () => closeModal(),
   pick: (d) => {
     S.activeInstance = d.id;
