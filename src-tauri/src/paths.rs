@@ -18,8 +18,13 @@ fn root_cached() -> PathBuf {
             return p;
         }
         dirs::data_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("nebula-launcher")
+            .or_else(|| {
+                std::env::var("HOME")
+                    .ok()
+                    .map(|h| PathBuf::from(h).join(".local/share"))
+            })
+            .map(|d| d.join("nebula-launcher"))
+            .unwrap_or_else(|| PathBuf::from(".nebula-launcher"))
     })
     .clone()
 }

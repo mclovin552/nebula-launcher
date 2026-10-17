@@ -62,8 +62,55 @@ pub fn safe_name(n: &str) -> bool {
     !n.is_empty() && !n.contains('/') && !n.contains('\\') && n != ".." && n != "."
 }
 
+pub fn url_param(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
 pub fn split_args(s: &str) -> Vec<String> {
-    s.split_whitespace().map(|x| x.to_string()).collect()
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut in_quote: Option<char> = None;
+    let mut has_token = false;
+    for c in s.chars() {
+        if let Some(q) = in_quote {
+            if c == q {
+                in_quote = None;
+            } else {
+                cur.push(c);
+            }
+            continue;
+        }
+        match c {
+            '"' | '\'' => {
+                in_quote = Some(c);
+                has_token = true;
+            }
+            ' ' | '\t' | '\n' | '\r' => {
+                if has_token || !cur.is_empty() {
+                    out.push(cur.clone());
+                    cur.clear();
+                    has_token = false;
+                }
+            }
+            _ => {
+                cur.push(c);
+                has_token = true;
+            }
+        }
+    }
+    if has_token || !cur.is_empty() {
+        out.push(cur);
+    }
+    out
 }
 
 pub fn hex(bytes: &[u8]) -> String {

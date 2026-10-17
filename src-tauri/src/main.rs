@@ -392,6 +392,13 @@ async fn self_update(app: AppHandle) -> Result<String, String> {
     } else {
         repo
     };
+    let repo_valid = repo.split('/').count() == 2
+        && repo
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '/' || c == '-' || c == '_' || c == '.');
+    if !repo_valid {
+        return Err("Repositorio de actualizaciones inválido (usa usuario/repo)".to_string());
+    }
     let v: Value = http::get_json(&format!(
         "https://api.github.com/repos/{repo}/releases/latest"
     ))
@@ -468,7 +475,7 @@ async fn skin_gallery(page: i64) -> Result<Vec<Value>, String> {
             }
             Some(json!({
                 "url": url,
-                "id": s.get("id").and_then(|i| i.as_i64()).unwrap_or(0) as i64,
+                "id": s.get("id").and_then(|i| i.as_i64()).unwrap_or(0),
             }))
         })
         .collect();

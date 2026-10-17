@@ -771,6 +771,7 @@ function viewSettings() {
         <label class="field"><span>Variables de entorno (una por línea, CLAVE=valor)</span><textarea id="s-env" placeholder="MESA_GLTHREAD=true">${esc(s.env_vars)}</textarea></label>
         <label class="field"><span>Comando antes de jugar</span><input type="text" id="s-pre" value="${esc(s.pre_launch)}"></label>
         <label class="field"><span>Comando al cerrar el juego</span><input type="text" id="s-post" value="${esc(s.post_exit)}"></label>
+        <p class="muted" style="font-size:12.5px">⚠️ Los comandos "antes de jugar" y "al cerrar" se ejecutan con tu usuario: solo escribas comandos que entiendas.</p>
       </div>
       <div class="panel stack">
         <h2>Aplicación</h2>
@@ -1127,7 +1128,8 @@ function paintWardrobe() {
 }
 
 function skinCube(url) {
-  return `<span class="skin-cube-wrap"><span class="skin-cube" style="--tex:url('${url}')"><i class="f0"></i><i class="f1"></i><i class="f2"></i><i class="f3"></i><i class="f4"></i><i class="f5"></i></span></span>`;
+  const safe = String(url || '').replace(/[^A-Za-z0-9:/?%&=._-]/g, '');
+  return `<span class="skin-cube-wrap"><span class="skin-cube" style="--tex:url('${safe}')"><i class="f0"></i><i class="f1"></i><i class="f2"></i><i class="f3"></i><i class="f4"></i><i class="f5"></i></span></span>`;
 }
 
 async function openPopular() {

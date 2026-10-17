@@ -83,5 +83,12 @@ pub fn load() -> Settings {
 pub fn save(settings: &Settings) -> Result<(), String> {
     paths::ensure()?;
     let data = serde_json::to_vec_pretty(settings).map_err(|e| e.to_string())?;
-    std::fs::write(paths::root().join("settings.json"), data).map_err(|e| e.to_string())
+    let path = paths::root().join("settings.json");
+    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
 }

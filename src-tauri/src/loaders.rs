@@ -205,7 +205,13 @@ pub async fn install_profile(
     loader_version: Option<String>,
 ) -> Result<(String, String), String> {
     let chosen = match loader_version.filter(|v| !v.is_empty()) {
-        Some(v) => v,
+        Some(v) => {
+            if crate::mojang::safe_id(&v) {
+                v
+            } else {
+                return Err("Versión de cargador inválida".to_string());
+            }
+        }
         None => {
             let all = versions(kind, mc).await?;
             pick_default(&all)

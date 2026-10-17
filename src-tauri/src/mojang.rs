@@ -51,7 +51,17 @@ pub async fn manifest() -> Result<Manifest, String> {
     }
 }
 
+pub fn safe_id(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= 96
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+}
+
 pub async fn version_json(id: &str) -> Result<Value, String> {
+    if !safe_id(id) {
+        return Err("Identificador de versión inválido".to_string());
+    }
     let path = paths::versions().join(id).join(format!("{id}.json"));
     if let Ok(data) = tokio::fs::read(&path).await {
         if let Ok(v) = serde_json::from_slice::<Value>(&data) {
@@ -279,7 +289,8 @@ pub struct LibraryPlan {
 
 fn artifact_job(art: &Value) -> Option<(Job, PathBuf)> {
     let path = art.get("path").and_then(|p| p.as_str())?;
-    let dest = paths::libraries().join(path);
+    let rel = crate::util::safe_rel(path)?;
+    let dest = paths::libraries().join(rel);
     let url = art.get("url").and_then(|u| u.as_str()).unwrap_or("");
     let job = Job {
         url: url.to_string(),

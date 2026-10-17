@@ -164,6 +164,8 @@ async fn fetch_to(job: &Job) -> Result<(), String> {
         tokio::fs::File::create(&tmp).await.ctx()?
     };
     let mut stream = resp.bytes_stream();
+    let mut written: u64 = existing;
+    const MAX_DOWNLOAD: u64 = 2 * 1024 * 1024 * 1024;
     while let Some(chunk) = stream.next().await {
         if cancelled() {
             let _ = file.flush().await;
@@ -171,6 +173,12 @@ async fn fetch_to(job: &Job) -> Result<(), String> {
         }
         let chunk = chunk.ctx()?;
         hasher.update(&chunk);
+        written += chunk.len() as u64;
+        if (job.size > 0 && written > job.size) || written > MAX_DOWNLOAD {
+            let _ = file.flush().await;
+            let _ = tokio::fs::remove_file(&tmp).await;
+            return Err("El archivo supera el tamaño esperado".to_string());
+        }
         file.write_all(&chunk).await.ctx()?;
     }
     file.flush().await.ctx()?;

@@ -65,15 +65,14 @@ fn url_decode(s: &str) -> String {
     out
 }
 
-fn start_local_server() -> Result<
-    (
-        u16,
-        Arc<Mutex<Option<String>>>,
-        Arc<Mutex<Option<String>>>,
-        Arc<AtomicBool>,
-    ),
-    String,
-> {
+type ServerHandles = (
+    u16,
+    Arc<Mutex<Option<String>>>,
+    Arc<Mutex<Option<String>>>,
+    Arc<AtomicBool>,
+);
+
+fn start_local_server() -> Result<ServerHandles, String> {
     let listener = TcpListener::bind("127.0.0.1:0")
         .map_err(|e| format!("No se pudo abrir el servidor local (localhost): {e}"))?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();

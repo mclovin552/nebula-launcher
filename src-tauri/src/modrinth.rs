@@ -119,7 +119,7 @@ async fn fetch_versions(
         q.push(("loaders".to_string(), serde_json::to_string(&l).ctx()?));
     }
     let resp = client()
-        .get(format!("{API}/project/{project}/version"))
+        .get(format!("{API}/project/{}", crate::util::url_param(project)))
         .query(&q)
         .timeout(Duration::from_secs(40))
         .send()
@@ -139,7 +139,7 @@ fn best(versions: Vec<Value>) -> Option<Value> {
 }
 
 async fn version_by_id(id: &str) -> Result<Value, String> {
-    http::get_json(&format!("{API}/version/{id}")).await
+    http::get_json(&format!("{API}/version/{}", crate::util::url_param(id))).await
 }
 
 fn primary_job(version: &Value, dest: PathBuf) -> Result<(Job, String), String> {
@@ -306,7 +306,11 @@ pub async fn optimize_instance(app: AppHandle, instance_id: &str) -> Result<Vec<
 }
 
 pub async fn project_details(project_id: &str) -> Result<Value, String> {
-    let v: Value = http::get_json(&format!("{API}/project/{project_id}")).await?;
+    let v: Value = http::get_json(&format!(
+        "{API}/project/{}",
+        crate::util::url_param(project_id)
+    ))
+    .await?;
     let gallery = v
         .get("gallery")
         .and_then(|g| g.as_array())
