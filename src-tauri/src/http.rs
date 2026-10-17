@@ -22,14 +22,73 @@ pub fn client() -> &'static reqwest::Client {
 }
 
 pub async fn get_json<T: DeserializeOwned>(url: &str) -> Result<T, String> {
-    let resp = client()
-        .get(url)
-        .timeout(Duration::from_secs(40))
-        .send()
-        .await
-        .map_err(|e| format!("{url}: {e}"))?;
-    let resp = resp.error_for_status().map_err(|e| format!("{url}: {e}"))?;
-    resp.json::<T>().await.map_err(|e| format!("{url}: {e}"))
+    let bytes = get_json_raw(url).await?;
+    serde_json::from_slice(&bytes)
+        .map_err(|e| format!("{url}: la respuesta no es JSON válido ({e})"))
+}
+
+async fn get_json_raw(url: &str) -> Result<Vec<u8>, String> {
+    let mut last: Option<String> = None;
+    for attempt in 0..2 {
+        if attempt == 1 {
+            tokio::time::sleep(Duration::from_millis(800)).await;
+        }
+        let resp = client()
+            .get(url)
+            .timeout(Duration::from_secs(40))
+            .header("Accept", "application/json")
+            .send()
+            .await
+            .map_err(|e| format!("{url}: {e}"))?;
+        let status = resp.status();
+        let ctype = resp
+            .headers()
+            .get("content-type")
+            .and_then(|c| c.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        match resp.bytes().await {
+            Ok(b) => {
+                if b.len() > 8 * 1024 * 1024 {
+                    return Err(format!("{url}: respuesta demasiado grande"));
+                }
+                let ok_type = ctype.starts_with("application/json")
+                    || ctype.starts_with("text/json")
+                    || ctype.contains("charset");
+                let probe = String::from_utf8_lossy(&b[..b.len().min(80)])
+                    .trim()
+                    .to_string();
+                if status.is_success()
+                    && ok_type
+                    && (probe.starts_with('{') || probe.starts_with('['))
+                {
+                    return Ok(b.to_vec());
+                }
+                last = Some(format!(
+                    "{url}: respuesta inválida (HTTP {status}, {ctype}): {}",
+                    fallback_snip(b.as_ref())
+                ));
+            }
+            Err(e) => {
+                last = Some(format!("{url}: {e}"));
+            }
+        }
+        if status.as_u16() == 429 {
+            let msg = last.unwrap_or_else(|| format!("{url}: error desconocido"));
+            return Err(msg);
+        }
+    }
+    Err(last.unwrap_or_else(|| format!("{url}: error desconocido")))
+}
+
+fn fallback_snip(b: &[u8]) -> String {
+    let s = String::from_utf8_lossy(b);
+    let t = s.trim().replace('\n', " ");
+    let mut cut = t.chars().take(120).collect::<String>();
+    if t.len() > 120 {
+        cut.push('…');
+    }
+    cut
 }
 
 pub async fn get_bytes(url: &str) -> Result<Vec<u8>, String> {
