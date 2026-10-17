@@ -295,6 +295,7 @@
     const ua = navigator.userAgent;
     if (/Win/i.test(ua)) return 'windows';
     if (/Linux/i.test(ua) && !/Android/i.test(ua)) return 'linux';
+    if (/Mac|iPhone|iPad/i.test(ua)) return 'mac';
     return 'otro';
   })();
 
@@ -318,24 +319,35 @@
     .then(rel => {
       const v = (rel.tag_name || '').replace(/^v/, '');
       document.getElementById('ver').textContent = 'v' + v + ' es la última';
-      const base = 'https://github.com/mclovin552/nebula-launcher/releases/latest/download/';
+      const dlbase = 'https://github.com/mclovin552/nebula-launcher/releases/download/' + rel.tag_name + '/';
       const names = (rel.assets || []).map(a => a.name);
+      const pick = (re) => {
+        const hits = names.filter(n => re.test(n));
+        hits.sort((a, b) => (b.includes('_' + v + '_') || b.includes('-' + v + '-') ? 1 : 0) - (a.includes('_' + v + '_') || a.includes('-' + v + '-') ? 1 : 0));
+        return hits[0] || '';
+      };
       let main = rel.html_url || '#';
       let dash = '';
+      let oslabel = '';
       if (OS === 'windows') {
-        document.getElementById('os-name').textContent = 'Windows';
-        if (names.find(n => /_x64-setup\.exe$/.test(n))) main = base + names.find(n => /_x64-setup\.exe$/.test(n));
-        if (names.find(n => /_en-US\.msi$/.test(n))) dash = base + names.find(n => /_en-US\.msi$/.test(n));
+        oslabel = 'Windows';
+        main = pick(/_x64-setup\.exe$/) ? dlbase + pick(/_x64-setup\.exe$/) : main;
+        dash = pick(/_en-US\.msi$/) ? dlbase + pick(/_en-US\.msi$/) : '';
       } else if (OS === 'linux') {
-        document.getElementById('os-name').textContent = 'Linux';
-        if (names.find(n => /AppImage/.test(n))) main = base + names.find(n => /AppImage/.test(n));
-        if (names.find(n => /amd64\.deb$/.test(n))) dash = base + names.find(n => /amd64\.deb$/.test(n));
+        oslabel = 'Linux';
+        main = pick(/_amd64\.AppImage$/) ? dlbase + pick(/_amd64\.AppImage$/) : main;
+        dash = pick(/amd64\.deb$/) ? dlbase + pick(/amd64\.deb$/) : '';
+      } else if (OS === 'mac') {
+        oslabel = 'macOS';
+        main = pick(/\.dmg$/) ? dlbase + pick(/\.dmg$/) : main;
+        dash = '';
       }
+      document.getElementById('os-name').textContent = oslabel || 'tu sistema';
       document.getElementById('main-dl').href = main;
       const q = document.getElementById('dash-dl');
-      if (dash) { q.href = dash; q.textContent = 'Descargar formato alternativo'; q.hidden = false; }
+      if (dash) { q.href = dash; q.textContent = 'Descargar formato alternativo'; q.hidden = false; } else { q.hidden = true; }
       document.getElementById('ver-info').innerHTML =
-        'Versión ' + v + ' · Windows y Linux · <a href="' + (rel.html_url || '#') + '">ver notas del release</a>';
+        'Versión ' + v + ' · Windows, Linux y macOS · <a href="' + (rel.html_url || '#') + '">ver notas del release</a>';
       document.title = 'Nebula Launcher v' + v + ' — Descargar';
     })
     .catch(() => {
