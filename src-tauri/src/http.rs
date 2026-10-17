@@ -22,19 +22,28 @@ pub fn client() -> &'static reqwest::Client {
 }
 
 pub async fn get_json<T: DeserializeOwned>(url: &str) -> Result<T, String> {
-    let bytes = get_json_raw(url).await?;
+    req_json(client().get(url), url).await
+}
+
+pub async fn req_json<T: DeserializeOwned>(
+    builder: reqwest::RequestBuilder,
+    url: &str,
+) -> Result<T, String> {
+    let bytes = req_raw(builder, url).await?;
     serde_json::from_slice(&bytes)
         .map_err(|e| format!("{url}: la respuesta no es JSON válido ({e})"))
 }
 
-async fn get_json_raw(url: &str) -> Result<Vec<u8>, String> {
+pub async fn req_raw(builder: reqwest::RequestBuilder, url: &str) -> Result<Vec<u8>, String> {
     let mut last: Option<String> = None;
     for attempt in 0..2 {
         if attempt == 1 {
             tokio::time::sleep(Duration::from_millis(800)).await;
         }
-        let resp = client()
-            .get(url)
+        let resp = builder
+            .try_clone()
+            .ok_or_else(|| format!("{url}: no se pudo clonar la petición"))?;
+        let resp = resp
             .timeout(Duration::from_secs(40))
             .header("Accept", "application/json")
             .send()

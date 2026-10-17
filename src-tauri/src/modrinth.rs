@@ -10,7 +10,6 @@ use sha2::{Digest, Sha512};
 use std::collections::HashSet;
 use std::io::Write;
 use std::path::PathBuf;
-use std::time::Duration;
 use tauri::AppHandle;
 
 const API: &str = "https://api.modrinth.com/v2";
@@ -62,22 +61,14 @@ pub async fn search(
     }
     let facets_json = serde_json::to_string(&facets).ctx()?;
     let off = offset.to_string();
-    let resp = client()
-        .get(format!("{API}/search"))
-        .query(&[
-            ("query", query),
-            ("facets", facets_json.as_str()),
-            ("limit", "24"),
-            ("offset", off.as_str()),
-            ("index", sort),
-        ])
-        .timeout(Duration::from_secs(40))
-        .send()
-        .await
-        .ctx()?
-        .error_for_status()
-        .ctx()?;
-    let body: Value = resp.json().await.ctx()?;
+    let req = client().get(format!("{API}/search")).query(&[
+        ("query", query),
+        ("facets", facets_json.as_str()),
+        ("limit", "24"),
+        ("offset", off.as_str()),
+        ("index", sort),
+    ]);
+    let body: Value = http::req_json(req, "{API}/search").await?;
     let hits = body
         .get("hits")
         .and_then(|h| h.as_array())
@@ -118,16 +109,10 @@ async fn fetch_versions(
     if let Some(l) = loaders {
         q.push(("loaders".to_string(), serde_json::to_string(&l).ctx()?));
     }
-    let resp = client()
+    let req = client()
         .get(format!("{API}/project/{}", crate::util::url_param(project)))
-        .query(&q)
-        .timeout(Duration::from_secs(40))
-        .send()
-        .await
-        .ctx()?
-        .error_for_status()
-        .ctx()?;
-    resp.json::<Vec<Value>>().await.ctx()
+        .query(&q);
+    http::req_json::<Vec<Value>>(req, "{API}/project").await
 }
 
 fn best(versions: Vec<Value>) -> Option<Value> {
@@ -379,16 +364,10 @@ async fn version_map(
         "loaders": loader_list(loader),
         "game_versions": [mc_version]
     });
-    let resp = client()
+    let req = client()
         .post(format!("{API}/version_files/update"))
-        .json(&body)
-        .timeout(Duration::from_secs(60))
-        .send()
-        .await
-        .ctx()?
-        .error_for_status()
-        .ctx()?;
-    resp.json().await.ctx()
+        .json(&body);
+    http::req_json::<Value>(req, "{API}/version_files/update").await
 }
 
 pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateItem>, String> {
@@ -727,15 +706,14 @@ pub async fn export_mrpack(instance_id: &str, dest: String) -> Result<(), String
     let mut urls: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     if !files.is_empty() {
         let hashes: Vec<String> = files.iter().map(|f| f.sha1.clone()).collect();
-        let resp = client()
+        let req = client()
             .post(format!("{API}/version_files"))
-            .json(&json!({ "hashes": hashes, "algorithm": "sha1" }))
-            .timeout(Duration::from_secs(60))
-            .send()
-            .await
-            .ctx()?;
-        if resp.status().is_success() {
-            let map: Value = resp.json().await.ctx()?;
+            .json(&json!({ "hashes": hashes, "algorithm": "sha1" }));
+        let map: Value = match http::req_json::<Value>(req, "{API}/version_files").await {
+            Ok(m) => m,
+            Err(_) => Value::Null,
+        };
+        {
             if let Some(obj) = map.as_object() {
                 for (hash, version) in obj {
                     let found = version
