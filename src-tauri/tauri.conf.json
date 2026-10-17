@@ -1,6 +1,6 @@
 {
   "productName": "Nebula Launcher",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "identifier": "dev.nebula.launcher",
   "build": {
     "frontendDist": "../ui"

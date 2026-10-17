@@ -607,6 +607,8 @@ async fn patch_notes() -> Result<Vec<Value>, String> {
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    std::env::set_var("GTK_OVERLAY_SCROLLING", "0");
     let _ = paths::ensure();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
