@@ -169,6 +169,13 @@
     font-size: 14px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
   }
   footer .heart { color: #e25555; }
+
+  .temas-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 22px; }
+  .temas-row figure { margin: 0; }
+  .temas-row img { width: 100%; border-radius: 12px; border: 1px solid var(--line, #333); transition: transform .2s ease, box-shadow .2s; }
+  .temas-row img:hover { transform: scale(1.02); box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+  .temas-row figcaption { font-size: 14px; margin-top: 6px; color: var(--muted, #999); text-align: center; }
+  @media (max-width: 860px) { .temas-row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -193,6 +200,14 @@
     </div>
     <p class="meta" id="ver-info">Consultando la última versión… · <a href="https://github.com/mclovin552/nebula-launcher/releases">todas las versiones</a></p>
     <div class="shot"><img src="screenshot-home.png" alt="Nebula Launcher"></div>
+  <div class="temas-row">
+    <figure><img src="temas/tema-dark.png" alt="Tema Aurora oscuro"><figcaption>🌌 Aurora oscuro</figcaption></figure>
+    <figure><img src="temas/tema-light.png" alt="Tema Aurora claro"><figcaption>☀️ Aurora claro</figcaption></figure>
+    <figure><img src="temas/tema-contrast.png" alt="Tema Blanco y negro"><figcaption>⬛ B/N elegante</figcaption></figure>
+    <figure><img src="temas/tema-forest.png" alt="Tema Bosque"><figcaption>🌿 Bosque</figcaption></figure>
+    <figure><img src="temas/tema-oceano.png" alt="Tema Océano"><figcaption>🌊 Océano</figcaption></figure>
+    <figure><img src="temas/tema-atardecer.png" alt="Tema Atardecer"><figcaption>🌇 Atardecer</figcaption></figure>
+  </div>
   </header>
 
   <section id="funciones">
@@ -204,15 +219,18 @@
       <div class="card"><div class="ico">🧵</div><b>Skins y capas</b><p>Armario con vista 3D, cambio por cuenta oficial y skins sin conexión (con o sin PNG propio) que SÍ se ve en el juego.</p></div>
       <div class="card"><div class="ico">💾</div><b>Backups automáticos</b><p>Copias de tus mundos cada pocos minutos mientras juegas, con rotación. Se acabó perder tu casa.</p></div>
       <div class="card"><div class="ico">🖥️</div><b>Servidores con ping real</b><p>MOTD, jugadores y latencia en vivo, más lista de servidores populares y entrada rápida (quickPlay).</p></div>
-      <div class="card"><div class="ico">🎨</div><b>Tres interfaces</b><p>Aurora oscuro, Aurora claro y Blanco y Negro. Barra de scroll clásica, animaciones fluidas y avisos discretos.</p></div>
-    </div>
+      <div class="card"><div class="ico">🎨</div><b>Seis interfaces</b><p>Del Aurora púrpura al Bosque, Océano y Atardecer. Con nebulosa viva de fondo, tarjetas en cascada y botón Jugar con pulso.</p></div>
+
+      <div class="card"><div class="ico">☕</div><b>Auto-Java real</b><p>Detecta el Java que necesita cada versión, lo trae oficial (Temurin) en 1 clic y escanea los que ya tengas. Chip de estado por instancia.</p></div>
+      <div class="card"><div class="ico">🧳</div><b>Modpacks en 1 clic</b><p>Catálogo directo desde el inicio: eliges portada y el launcher arma la instancia completa con mods, config y Java.</p></div>
+      <div class="card"><div class="ico">🖥️</div><b>Windows, Linux y macOS</b><p>Instaladores nativos para cada sistema y auto-actualización con un clic en Windows y macOS (.dmg universal).</p></div>    </div>
   </section>
 
   <section id="instalar">
     <h2 class="underline">Instalar en 3 pasos</h2>
     <p class="lead">Menos de dos minutos, prometido.</p>
     <div class="steps">
-      <div class="step"><b>Descarga el instalador</b><p>El botón de arriba detecta tu sistema: <code>.exe/.msi</code> en Windows, <code>.AppImage/.deb/.rpm</code> en Linux.</p></div>
+      <div class="step"><b>Descarga el instalador</b><p>El botón de arriba detecta tu sistema: <code>.exe/.msi</code> en Windows, <code>.AppImage/.deb/.rpm</code> en Linux y <code>.dmg</code> universal en macOS.</p></div>
       <div class="step"><b>Instálalo (o ejecútalo)</b><p>En Windows doble clic y siguiente-siguiente. En Linux dale permiso de ejecución y ábrelo (o instálalo con tu gestor).</p></div>
       <div class="step"><b>Juega</b><p>Crea una instancia de tu versión favorita, entra con tu cuenta Microsoft (o perfil offline) y darle a Jugar.</p></div>
     </div>
@@ -220,7 +238,7 @@
 
   <section>
     <h2 class="underline">Vistazo al interior</h2>
-    <p class="lead">Tema Aurora con vidrio y animaciones — y el elegante Blanco y Negro.</p>
+    <p class="lead">Nebulosa animada de fondo, tarjetas que entran deslizándose y el botón Jugar pulsando — elige tu tema y toda la interfaz cambia de outfit.</p>
     <div class="shots2">
       <img src="screenshot-home.png" alt="Inicio con Aurora">
       <img src="screenshot-news.png" alt="Novedades de Minecraft">
@@ -238,6 +256,8 @@
       <tr><td>Buscador Modrinth</td><td class="yes">Incluido</td><td class="yes">A veces extra</td><td class="no">No</td></tr>
       <tr><td>Backups mientras juegas</td><td class="yes">Incluido</td><td class="no">No</td><td class="no">No</td></tr>
       <tr><td>Verificación SHA-1 del juego</td><td class="yes">Paso estándar</td><td class="no">No</td><td class="yes">Sí</td></tr>
+      <tr><td>Auto-actualización con 1 clic</td><td class="yes">Windows + macOS</td><td class="yes">Sí</td><td class="no">A veces</td></tr>
+      <tr><td>Java automático por versión</td><td class="yes">Instala ofic. + escaneo</td><td class="yes">A veces</td><td class="no">No</td></tr>
     </table>
   </section>
 
@@ -253,7 +273,9 @@
     <details open><summary>¿Es gratis? ¿De verdad de verdad?</summary><p>Sí. Código abierto con licencia MIT, sin anuncios, sin cuentas obligatorias, sin "versión premium".</p></details>
     <details><summary>¿Necesito Minecraft comprado?</summary><p>Puedes jugar con cuenta Microsoft si lo has comprado (el launcher lo verifica contra los servidores de Mojang), o crear un perfil offline para probar sin conexión.</p></details>
     <details><summary>¿Es seguro?</summary><p>Sí: el código entero es visible en GitHub, los archivos del juego se verifican con SHA-1 contra los servidores de Mojang y nada se instala fuera de su carpeta de datos.</p></details>
-    <details><summary>¿Y si encuentro un bug?</summary><p>Abre un issue en GitHub o coméntalo en GitHub — hay versiones nuevas con frecuencia y los reportes se atienden.</p></details>
+    <details><summary>¿Hay versión para Mac?</summary><p>Sí: descarga el .dmg universal (funciona en Apple Silicon e Intel). Como no está firmado con cuenta de desarrollador de pago, en la primera apertura macOS puede avisar: clic derecho sobre la app → <b>Abrir</b>, y listo.</p></details>
+  <details><summary>¿Es actualizable sin volver a instalar?</summary><p>Sí: cuando hay versión nueva aparece un aviso pequeño dentro del launcher; en Windows y macOS se descarga e instala con un clic, sin pop-ups molestos.</p></details>
+  <details><summary>¿Y si encuentro un bug?</summary><p>Abre un issue en GitHub o coméntalo en GitHub — hay versiones nuevas con frecuencia y los reportes se atienden.</p></details>
   </section>
 
   <section class="cta">
