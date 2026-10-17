@@ -588,6 +588,7 @@ function viewSettings() {
       <div class="panel stack">
         <h2>Java y juego</h2>
         <label class="field"><span>Ruta de Java (vacío = automática, se descarga si hace falta)</span><input type="text" id="s-java" value="${esc(s.java_path)}" placeholder="Ejemplo: C:\\Program Files\\Java\\bin\\java.exe (Windows) o /usr/lib/jvm (Linux)"></label>
+        <button class="btn small" data-act="java-scan">☕ Detectar Java instalados en el sistema</button>
         <label class="field"><span>Argumentos de JVM</span><textarea id="s-jvm" placeholder="-XX:+UseG1GC">${esc(s.jvm_args)}</textarea></label>
         <div class="row wrap">${Object.keys(JVM_PRESETS).map((p) => `<button class="btn small" data-act="jvm-preset" data-target="s-jvm" data-preset="${esc(p)}">${esc(p)}</button>`).join('')}</div>
         <label class="field"><span>Comando envoltorio (por ejemplo gamemoderun o mangohud)</span><input type="text" id="s-wrap" value="${esc(s.wrapper)}"></label>
@@ -1527,6 +1528,12 @@ const actions = {
       toast('Añade una cuenta para jugar', 'err');
       return setView('accounts');
     }
+    let js = null;
+    try { js = await api('java_status', { id: d.id }, true); } catch (_) {}
+    if (js && !js.ready) {
+      showModal(`${sheetHead('☕ Esta versión necesita Java ' + js.major)}<p>Se descargará un Java oficial (Eclipse Temurin) y quedará dentro del launcher. No toca tu Java del sistema. También podrías instalarlo tú a mano y configurar la ruta en Ajustes → Java.</p><footer><button class="btn" data-act="java-no">Cancelar</button><button class="btn primary" data-act="java-yes" data-id="${esc(d.id)}" data-major="${js.major}">Instalar Java ${js.major}</button></footer>`, true);
+      return;
+    }
     S.progress = { stage: 'prepare', label: 'Preparando…', done: 0, total: 0 };
     updateDock();
     S.logs.push(`[Nebula] Iniciando ${d.id}`);
@@ -1540,6 +1547,33 @@ const actions = {
     }
   },
   stop: (d) => api('stop', { instanceId: d.id }).catch(() => {}),
+  'java-yes': async (d) => {
+    showModal(`${sheetHead('☕ Instalando Java ' + d.major)}<div class="row" style="gap:12px;align-items:center"><span class="muted">Descargando un Java oficial de Adoptium (Temurin), una sola vez…</span><span class="spinner"></span></div>`, true);
+    try {
+      await api('install_java', { id: d.id });
+      closeModal();
+      toast('☕ Java ' + d.major + ' listo', 'ok');
+      actions.play({ id: d.id });
+    } catch (_) {
+      closeModal();
+      toast('No se pudo instalar Java ' + d.major, 'err');
+    }
+  },
+  'java-no': () => closeModal(),
+  'java-scan': async () => {
+    showModal(`${sheetHead('☕ Java detectados en tu sistema')}<div class="list" style="max-height:45vh"><div class="row" style="gap:10px"><span class="muted">Buscando…</span><span class="spinner"></span></div></div>`, true);
+    try {
+      const list = await api('java_scan');
+      const rows = list.length
+        ? list.map((j) => `<div class="item"><div class="grow"><div class="ellipsis">${esc(j.path)}</div><span class="muted" style="font-size:12.5px">Major version ${j.major}</span></div><span class="chip">Java ${j.major}</span></div>`).join('')
+        : '<div class="empty"><p>No encontré Java en el sistema. Nebula descargará el que necesite cada versión automáticamente.</p></div>';
+      const box = document.querySelector('#modal .list');
+      if (box) box.innerHTML = rows;
+    } catch (_) {
+      closeModal();
+      toast('No se pudo escanear', 'err');
+    }
+  },
   dkind: (d) => {
     S.discover.kind = d.kind;
     S.discover.items = [];

@@ -100,6 +100,40 @@ fn adoptium_arch() -> &'static str {
     }
 }
 
+pub async fn status(major: u64, override_path: Option<String>) -> bool {
+    if let Some(p) = override_path.filter(|p| !p.trim().is_empty()) {
+        return PathBuf::from(p.trim()).is_file();
+    }
+    if find_bin(&managed_dir(major)).is_some() {
+        return true;
+    }
+    let mut fallback = false;
+    for bin in system_candidates() {
+        if let Some(m) = major_of(&bin).await {
+            if m == major {
+                return true;
+            }
+            if major >= 17 && m > major && !fallback {
+                fallback = true;
+            }
+        }
+    }
+    fallback
+}
+
+pub async fn scan() -> Vec<(String, u64)> {
+    let mut out = Vec::new();
+    for bin in system_candidates() {
+        if let Some(m) = major_of(&bin).await {
+            let bin = bin.to_string_lossy().to_string();
+            if !out.iter().any(|(p, _): &(String, u64)| *p == bin) {
+                out.push((bin, m));
+            }
+        }
+    }
+    out
+}
+
 pub async fn ensure<F>(
     major: u64,
     override_path: Option<String>,

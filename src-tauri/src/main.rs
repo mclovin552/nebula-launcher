@@ -121,12 +121,51 @@ async fn refresh_modpack(app: AppHandle, id: String) -> Result<(), String> {
     modrinth::refresh_modpack(app, &id).await
 }
 
-#[tauri::command]
-async fn java_needed(id: String) -> Result<u64, String> {
+async fn java_major_for(id: String) -> Result<u64, String> {
     let inst = instances::get(&id)?;
     let vid = loaders::ensure(&inst, None).await?;
     let (v, _) = mojang::resolve(&vid).await?;
     Ok(mojang::java_major(&v))
+}
+
+#[tauri::command]
+async fn java_needed(id: String) -> Result<u64, String> {
+    java_major_for(id).await
+}
+
+#[tauri::command]
+async fn java_status(id: String) -> Result<Value, String> {
+    let major = java_major_for(id.clone()).await?;
+    let inst = instances::get(&id)?;
+    let override_path = inst
+        .java_path
+        .clone()
+        .filter(|p| !p.trim().is_empty())
+        .or_else(|| Some(settings::load().java_path.clone()));
+    let ready = java::status(major, override_path).await;
+    Ok(json!({ "major": major, "ready": ready }))
+}
+
+#[tauri::command]
+async fn install_java(id: String) -> Result<String, String> {
+    let major = java_major_for(id.clone()).await?;
+    let inst = instances::get(&id)?;
+    let override_path = inst
+        .java_path
+        .clone()
+        .filter(|p| !p.trim().is_empty())
+        .or_else(|| Some(settings::load().java_path.clone()));
+    let bin = java::ensure(major, override_path, |_, _| {}).await?;
+    Ok(bin.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+async fn java_scan() -> Result<Vec<Value>, String> {
+    let list = java::scan().await;
+    Ok(list
+        .into_iter()
+        .map(|(path, major)| json!({ "path": path, "major": major }))
+        .collect())
 }
 
 #[tauri::command]
@@ -747,6 +786,9 @@ fn main() {
             screenshot_to_icon,
             refresh_modpack,
             java_needed,
+            java_status,
+            install_java,
+            java_scan,
             app_info,
             reorder_instances,
             skin_lookup,

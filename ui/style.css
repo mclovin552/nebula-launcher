@@ -1049,3 +1049,14 @@ body.contrast #update-pill .go { background: #111; }
   border-radius: 50%;
   background: #94a3b8;
 }
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(139, 92, 246, 0.25);
+  border-top-color: var(--amethyst, #8b5cf6);
+  animation: spin-360 0.8s linear infinite;
+  flex: 0 0 18px;
+}
+@keyframes spin-360 { to { transform: rotate(360deg); } }
