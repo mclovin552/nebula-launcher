@@ -26,7 +26,6 @@ body.light {
   --raised: #f3f5fb;
   --line: #d7dcec;
   --text: #1a1d2e;
-  --muted: #5fdd;
   --muted: #5f6683;
   --glow: #b78500;
   --glow-ink: #fffbe8;
@@ -838,7 +837,6 @@ input:not([type="range"]), textarea, select { transition: border-color 0.15s, bo
 h1, h2, h3 { text-wrap: balance; }
 p { text-wrap: pretty; }
 
-#view { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

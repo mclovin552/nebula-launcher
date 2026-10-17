@@ -568,7 +568,7 @@ function viewSettings() {
       </div>
       <div class="panel stack">
         <h2>Java y juego</h2>
-        <label class="field"><span>Ruta de Java (vacío = automática, se descarga si hace falta)</span><input type="text" id="s-java" value="${esc(s.java_path)}" placeholder="/usr/lib/jvm/java-21/bin/java"></label>
+        <label class="field"><span>Ruta de Java (vacío = automática, se descarga si hace falta)</span><input type="text" id="s-java" value="${esc(s.java_path)}" placeholder="Ejemplo: C:\\Program Files\\Java\\bin\\java.exe (Windows) o /usr/lib/jvm (Linux)"></label>
         <label class="field"><span>Argumentos de JVM</span><textarea id="s-jvm" placeholder="-XX:+UseG1GC">${esc(s.jvm_args)}</textarea></label>
         <div class="row wrap">${Object.keys(JVM_PRESETS).map((p) => `<button class="btn small" data-act="jvm-preset" data-target="s-jvm" data-preset="${esc(p)}">${esc(p)}</button>`).join('')}</div>
         <label class="field"><span>Comando envoltorio (por ejemplo gamemoderun o mangohud)</span><input type="text" id="s-wrap" value="${esc(s.wrapper)}"></label>
@@ -580,7 +580,7 @@ function viewSettings() {
         <label class="field"><span>Copia de mundos automática mientras juegas (minutos, 0 = apagada)</span><input type="number" id="s-backup" min="0" max="240" value="${s.auto_backup_minutes || 0}"></label>
       </div>
       <div class="panel stack">
-        <h2>Linux</h2>
+        <h2>Sistema</h2>
         <label class="field"><span>Variables de entorno (una por línea, CLAVE=valor)</span><textarea id="s-env" placeholder="MESA_GLTHREAD=true">${esc(s.env_vars)}</textarea></label>
         <label class="field"><span>Comando antes de jugar</span><input type="text" id="s-pre" value="${esc(s.pre_launch)}"></label>
         <label class="field"><span>Comando al cerrar el juego</span><input type="text" id="s-post" value="${esc(s.post_exit)}"></label>

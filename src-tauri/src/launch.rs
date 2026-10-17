@@ -91,7 +91,8 @@ fn extract_natives(jars: Vec<PathBuf>, dest: PathBuf) -> Result<(), String> {
             else {
                 continue;
             };
-            if !fname.contains(".so") {
+            let lower = fname.to_lowercase();
+            if !lower.ends_with(".so") && !lower.ends_with(".dll") {
                 continue;
             }
             if let Ok(mut out) = std::fs::File::create(dest.join(&fname)) {
@@ -120,8 +121,16 @@ pub fn parse_env(text: &str) -> Vec<(String, String)> {
 }
 
 async fn run_shell(script: &str, cwd: &Path, env: &[(String, String)]) -> Result<(), String> {
-    let mut c = tokio::process::Command::new("sh");
-    c.arg("-c").arg(script).current_dir(cwd);
+    let mut c = if cfg!(windows) {
+        let mut c = tokio::process::Command::new("cmd");
+        c.args(["/C", script]);
+        c
+    } else {
+        let mut c = tokio::process::Command::new("sh");
+        c.arg("-c").arg(script);
+        c
+    };
+    c.current_dir(cwd);
     for (k, v) in env {
         c.env(k, v);
     }
@@ -216,7 +225,7 @@ pub async fn run(
     })
     .await?;
 
-    let sep = ":";
+    let sep: &str = if cfg!(windows) { ";" } else { ":" };
     let mut cp: Vec<String> = lib_plan
         .classpath
         .iter()
@@ -261,7 +270,7 @@ pub async fn run(
         natives_dir.to_string_lossy().to_string(),
     );
     vars.insert("launcher_name", "NebulaLauncher".to_string());
-    vars.insert("launcher_version", "1.0.0".to_string());
+    vars.insert("launcher_version", env!("CARGO_PKG_VERSION").to_string());
     vars.insert("classpath", classpath);
     vars.insert("classpath_separator", sep.to_string());
     vars.insert(
@@ -465,8 +474,17 @@ pub fn stop(running: &Arc<Mutex<HashMap<String, u32>>>, instance_id: &str) -> Re
         .ok()
         .and_then(|r| r.get(instance_id).copied())
         .ok_or("La instancia no está en ejecución")?;
-    std::process::Command::new("kill")
-        .arg(pid.to_string())
+    std::process::Command::new(if cfg!(windows) { "taskkill" } else { "kill" })
+        .args(if cfg!(windows) {
+            vec![
+                "/PID".to_string(),
+                pid.to_string(),
+                "/T".to_string(),
+                "/F".to_string(),
+            ]
+        } else {
+            vec![pid.to_string()]
+        })
         .status()
         .ctx()?;
     Ok(())

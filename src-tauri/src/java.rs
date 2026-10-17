@@ -28,13 +28,14 @@ async fn major_of(bin: &Path) -> Option<u64> {
 }
 
 fn find_bin(dir: &Path) -> Option<PathBuf> {
-    let direct = dir.join("bin").join("java");
+    let exe = if cfg!(windows) { "java.exe" } else { "java" };
+    let direct = dir.join("bin").join(exe);
     if direct.is_file() {
         return Some(direct);
     }
     let entries = std::fs::read_dir(dir).ok()?;
     for e in entries.flatten() {
-        let candidate = e.path().join("bin").join("java");
+        let candidate = e.path().join("bin").join(exe);
         if candidate.is_file() {
             return Some(candidate);
         }
@@ -48,17 +49,46 @@ fn managed_dir(major: u64) -> PathBuf {
 
 fn system_candidates() -> Vec<PathBuf> {
     let mut out = Vec::new();
-    for base in ["/usr/lib/jvm", "/usr/lib64/jvm", "/usr/java", "/opt/java"] {
-        if let Ok(entries) = std::fs::read_dir(base) {
-            for e in entries.flatten() {
-                let bin = e.path().join("bin").join("java");
-                if bin.is_file() {
-                    out.push(bin);
+    if cfg!(windows) {
+        let bases = [
+            r"C:\Program Files\Java",
+            r"C:\Program Files (x86)\Java",
+            r"C:\Program Files\Eclipse Adoptium",
+            r"C:\Program Files\Microsoft",
+        ];
+        for base in bases {
+            if let Ok(entries) = std::fs::read_dir(base) {
+                for e in entries.flatten() {
+                    let bin = e.path().join("bin").join("java.exe");
+                    if bin.is_file() {
+                        out.push(bin);
+                    }
+                }
+            }
+        }
+        if let Ok(jh) = std::env::var("JAVA_HOME") {
+            let bin = PathBuf::from(&jh).join("bin").join("java.exe");
+            if bin.is_file() {
+                out.push(bin);
+            }
+        }
+    } else {
+        for base in ["/usr/lib/jvm", "/usr/lib64/jvm", "/usr/java", "/opt/java"] {
+            if let Ok(entries) = std::fs::read_dir(base) {
+                for e in entries.flatten() {
+                    let bin = e.path().join("bin").join("java");
+                    if bin.is_file() {
+                        out.push(bin);
+                    }
                 }
             }
         }
     }
-    out.push(PathBuf::from("java"));
+    out.push(PathBuf::from(if cfg!(windows) {
+        "java.exe"
+    } else {
+        "java"
+    }));
     out
 }
 
@@ -107,9 +137,15 @@ where
         return Ok(bin);
     }
     tokio::fs::create_dir_all(paths::cache()).await.ctx()?;
-    let archive = paths::cache().join(format!("java-{major}.tar.gz"));
+    let os = if cfg!(windows) { "windows" } else { "linux" };
+    let (archive_name, is_zip) = if cfg!(windows) {
+        (format!("java-{major}.zip"), true)
+    } else {
+        (format!("java-{major}.tar.gz"), false)
+    };
+    let archive = paths::cache().join(&archive_name);
     let url = format!(
-        "https://api.adoptium.net/v3/binary/latest/{major}/ga/linux/{}/jre/hotspot/normal/eclipse",
+        "https://api.adoptium.net/v3/binary/latest/{major}/ga/{os}/{}/jre/hotspot/normal/eclipse",
         adoptium_arch()
     );
     let _ = tokio::fs::remove_file(&archive).await;
@@ -126,16 +162,22 @@ where
     .await?;
     let dest = managed.clone();
     let archive_clone = archive.clone();
-    let result = tokio::task::spawn_blocking(move || -> Result<(), String> {
+    let is_zip_clone = is_zip;
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
         let _ = std::fs::remove_dir_all(&dest);
         std::fs::create_dir_all(&dest).ctx()?;
-        let file = std::fs::File::open(&archive_clone).ctx()?;
-        let gz = flate2::read::GzDecoder::new(file);
-        tar::Archive::new(gz).unpack(&dest).ctx()
+        if is_zip_clone {
+            let file = std::fs::File::open(&archive_clone).ctx()?;
+            let mut zip = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+            zip.extract(&dest).map_err(|e| e.to_string())
+        } else {
+            let file = std::fs::File::open(&archive_clone).ctx()?;
+            let gz = flate2::read::GzDecoder::new(file);
+            tar::Archive::new(gz).unpack(&dest).ctx()
+        }
     })
     .await
-    .ctx()?;
+    .ctx()??;
     let _ = tokio::fs::remove_file(&archive).await;
-    result?;
     find_bin(&managed).ok_or_else(|| format!("No se pudo instalar Java {major}"))
 }

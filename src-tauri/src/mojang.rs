@@ -181,10 +181,20 @@ pub fn features_for(quick_multiplayer: bool) -> HashMap<&'static str, bool> {
     f
 }
 
+pub fn os_name() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "osx"
+    } else if cfg!(windows) {
+        "windows"
+    } else {
+        "linux"
+    }
+}
+
 fn rule_matches(rule: &Value, feats: &HashMap<&'static str, bool>) -> bool {
     if let Some(os) = rule.get("os") {
         if let Some(n) = os.get("name").and_then(|x| x.as_str()) {
-            if n != "linux" {
+            if n != os_name() {
                 return false;
             }
         }
@@ -334,7 +344,7 @@ pub fn plan_libraries(v: &Value) -> LibraryPlan {
         }
         if let Some(cls) = lib
             .get("natives")
-            .and_then(|n| n.get("linux"))
+            .and_then(|n| n.get(os_name()))
             .and_then(|c| c.as_str())
         {
             let cls = cls.replace("${arch}", "64");

@@ -430,7 +430,12 @@ fn open_folder(id: Option<String>, sub: Option<String>) -> Result<(), String> {
         path = path.join(s);
     }
     std::fs::create_dir_all(&path).ctx()?;
-    std::process::Command::new("xdg-open")
+    let opener = if cfg!(windows) {
+        "explorer"
+    } else {
+        "xdg-open"
+    };
+    std::process::Command::new(opener)
         .arg(&path)
         .spawn()
         .map_err(|e| format!("No se pudo abrir el explorador de archivos: {e}"))?;
@@ -442,10 +447,17 @@ fn open_url(url: String) -> Result<(), String> {
     if !url.starts_with("https://") {
         return Err("Solo se pueden abrir enlaces https".to_string());
     }
-    std::process::Command::new("xdg-open")
-        .arg(&url)
-        .spawn()
-        .map_err(|e| format!("No se pudo abrir el navegador: {e}"))?;
+    if cfg!(windows) {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &url])
+            .spawn()
+            .map_err(|e| format!("No se pudo abrir el navegador: {e}"))?;
+    } else {
+        std::process::Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("No se pudo abrir el navegador: {e}"))?;
+    }
     Ok(())
 }
 
