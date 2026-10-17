@@ -179,14 +179,181 @@ const EN = {
   'Instancia': 'Instance'
 };
 const EN_KEYS = Object.keys(EN).sort((a, b) => b.length - a.length);
+const PT = {
+  'Inicio': 'Casa', 'Instancias': 'Instâncias', 'Descubrir': 'Descobrir', 'Cuentas': 'Contas', 'Consola': 'Console', 'Ajustes': 'Configurações',
+  'Jugar': 'Jogar', 'Detener': 'Parar', 'Crear instancia': 'Criar instância', 'Nueva instancia': 'Nova instância', 'Tu primera instancia': 'Sua primeira instância',
+  'Elige una versión y un cargador para empezar a jugar.': 'Escolha uma versão e um loader para começar a jogar.',
+  'Instancias recientes': 'Instâncias recentes', 'Ver todas': 'Ver todas', 'Novedades de Minecraft': 'Novidades do Minecraft', 'Cargando novedades…': 'Carregando novidades…',
+  'No se pudieron cargar las novedades. Comprueba tu conexión.': 'Não foi possível carregar as novidades. Verifique sua conexão.',
+  'Aún no tienes instancias': 'Você ainda não tem instâncias', 'Cada instancia tiene sus propios mods, mundos y ajustes.': 'Cada instância tem seus próprios mods, mundos e configurações.',
+  'Contenido': 'Conteúdo', 'Abrir carpeta': 'Abrir pasta', 'Editar': 'Editar', 'Eliminar': 'Excluir', 'Duplicar': 'Duplicar', 'Exportar modpack': 'Exportar modpack',
+  'Importar modpack': 'Importar modpack', 'Sin grupo': 'Sem grupo', 'Tiempo jugado': 'Tempo jogado',
+  'Mods': 'Mods', 'Modpacks': 'Modpacks', 'Texturas': 'Texturas', 'Shaders': 'Shaders', 'Mundos': 'Mundos', 'Servidores': 'Servidores', 'Copias': 'Cópias',
+  'Buscar en': 'Buscar em', 'Relevancia': 'Relevância', 'Descargas': 'Downloads', 'Más nuevos': 'Mais novos', 'Actualizados': 'Atualizados', 'Sin instancias': 'Sem instâncias',
+  'Instancia de destino': 'Instância de destino', 'Ordenar': 'Ordenar por', 'Sin resultados. Prueba con otra búsqueda.': 'Sem resultados. Tente outra busca.', 'Buscando…': 'Buscando…',
+  'descargas': 'downloads', 'Instalar como instancia': 'Instalar como instância', 'Instalar': 'Instalar', 'Cargar más': 'Carregar mais', 'Cargando…': 'Carregando…',
+  'Inicia sesión con tu cuenta que posee Minecraft Java para jugar en servidores oficiales.': 'Entre com a sua conta que possui o Minecraft Java para jogar em servidores oficiais.',
+  'Iniciar sesión con Microsoft': 'Entrar com Microsoft', 'Sin conexión': 'Offline', 'Cuenta Microsoft': 'Conta Microsoft',
+  'Juega en modo individual o en servidores sin verificación con cualquier nombre.': 'Jogue no modo singleplayer ou em servidores sem verificação com qualquer nome.',
+  'Nombre de jugador': 'Nome do jogador', 'Tus cuentas': 'Suas contas', 'Todavía no hay cuentas añadidas.': 'Nenhuma conta adicionada ainda.', 'En uso': 'Em uso', 'Usar': 'Usar',
+  'Quitar cuenta': 'Remover conta', 'Cambiar skin': 'Trocar skin', 'Skin': 'Skin', 'Clásica': 'Clássica', 'Delgada': 'Magro', 'Elegir archivo PNG': 'Escolher arquivo PNG', 'Modelo': 'Modelo',
+  'Limpiar': 'Limpar', 'Guardar cambios': 'Salvar alterações', 'Abrir carpeta de datos': 'Abrir pasta de dados', 'Memoria': 'Memória', 'Máxima': 'Máxima', 'Mínima': 'Mínima', 'de': 'de',
+  'Ruta de Java (vacío = automática, se descarga si hace falta)': 'Caminho do Java (vazio = automático, é baixado se faltar)', 'Argumentos de JVM': 'Argumentos da JVM',
+  'Comando envoltorio (por ejemplo gamemoderun o mangohud)': 'Comando wrapper (por exemplo gamemoderun ou mangohud)', 'Ancho de ventana': 'Largura da janela', 'Alto de ventana': 'Altura da janela',
+  'Descargas simultáneas': 'Downloads simultâneos', 'Linux': 'Linux', 'Variables de entorno (una por línea, CLAVE=valor)': 'Variáveis de ambiente (uma por linha, CHAVE=valor)',
+  'Comando antes de jugar': 'Comando antes de jogar', 'Comando al cerrar el juego': 'Comando ao fechar o jogo', 'Idioma': 'Idioma',
+  'Repositorio de actualizaciones (usuario/repo en GitHub)': 'Repositório de atualizações (usuário/repo no GitHub)',
+  'Cuentas y servicios': 'Contas e serviços', 'Ajustes guardados': 'Configurações salvas',
+  'Cancelar': 'Cancelar', 'Crear': 'Criar', 'Creando…': 'Criando…', 'Guardar': 'Salvar', 'Cerrar': 'Fechar', 'Cargador': 'Loader', 'Versión de Minecraft': 'Versão do Minecraft', 'Versión del cargador': 'Versão do loader',
+  'No aplica': 'Não se aplica', 'Mostrar snapshots y versiones antiguas': 'Mostrar snapshots e versões antigas', '(última)': '(mais recente)', 'No disponible para esta versión': 'Indisponível para esta versão', 'Error de red': 'Erro de rede',
+  'Escribe un nombre para la instancia': 'Escreva um nome para a instância', 'Instancia creada': 'Instância criada', 'Editar instancia': 'Editar instância', 'Grupo': 'Grupo', 'Color': 'Cor',
+  'Memoria máxima en MB (vacío = global)': 'Memória máxima em MB (vazio = global)', 'Ruta de Java (vacío = global)': 'Caminho do Java (vazio = global)', 'Argumentos de JVM adicionales': 'Argumentos extras da JVM',
+  'Variables de entorno de la instancia': 'Variáveis de ambiente da instância', 'Eliminar instancia': 'Excluir instância', 'No se puede deshacer.': 'Não é possível desfazer.',
+  'Se borrarán': 'Serão excluídos', 'sus mundos y su configuración.': 'seus mundos e suas configurações.',
+  'Desactivar': 'Desativar', 'Activar': 'Ativar', 'desactivado': 'desativado', 'Carpeta': 'Pasta', 'No hay nada aquí todavía. Búscalo en Descubrir.': 'Nada aqui ainda. Procure em Descobrir.',
+  'Añadir archivo': 'Adicionar arquivo', 'Buscar actualizaciones': 'Verificar atualizações', 'Actualizar': 'Atualizar', 'Actualizar todo': 'Atualizar tudo', 'Todo está al día': 'Tudo está em dia',
+  'actualizaciones disponibles': 'atualizações disponíveis', 'Crear copia ahora': 'Fazer cópia agora', 'Restaurar': 'Restaurar', 'Copia creada': 'Cópia criada', 'Copia restaurada': 'Cópia restaurada',
+  'Las copias guardan todos los mundos de la instancia.': 'As cópias guardam todos os mundos da instância.', 'Arrastra archivos aquí para añadirlos': 'Arraste arquivos aqui para adicioná-los',
+  'Dirección del servidor': 'Endereço do servidor', 'Nombre del servidor': 'Nome do servidor', 'Aún no hay servidores. Añade uno para entrar directo al iniciar.': 'Ainda não há servidores. Adicione um para entrar direto ao iniciar.',
+  'Entrar': 'Entrar', 'Servidor añadido': 'Servidor adicionado',
+  'Abre la página de Microsoft e introduce este código:': 'Abra a página da Microsoft e digite este código:',
+  'Abrir página de inicio de sesión': 'Abrir página de login', 'Esperando a que completes el inicio de sesión…': 'Esperando você concluir o login…',
+  'Sesión iniciada correctamente': 'Sessão iniciada com sucesso', 'No se pudo iniciar sesión': 'Não foi possível fazer login',
+  'Añade una cuenta para jugar': 'Adicione uma conta para jogar', 'Preparando…': 'Preparando…', 'Cancelar descarga': 'Cancelar download',
+  'Minecraft se cerró con un error': 'O Minecraft fechou com um erro', 'Minecraft se cerró con un error. Revisa la consola.': 'O Minecraft fechou com um erro. Verifique o console.',
+  'El juego se cerró con un error': 'O jogo fechou com um erro', 'Posibles causas': 'Causas possíveis', 'Copiar registro': 'Copiar log', 'Registro copiado': 'Log copiado',
+  'No se encontró un patrón conocido. Copia el registro y compártelo para pedir ayuda.': 'Nenhum padrão conhecido foi encontrado. Copie o log e compartilhe para pedir ajuda.',
+  'Falta memoria. Sube la memoria máxima en Ajustes o en la instancia.': 'Faltou memória. Aumente a memória máxima nas Configurações ou na instância.',
+  'La versión de Java no coincide. Deja la ruta de Java vacía para que Nebula use la correcta.': 'A versão do Java não corresponde. Deixe o caminho do Java vazio para o Nebula usar o correto.',
+  'Un mod no es compatible con esta versión del juego o con otro mod. Desactiva los mods recientes e inténtalo de nuevo.': 'Um mod é incompatível com esta versão do jogo ou com outro mod. Desative os mods recentes e tente novamente.',
+  'Falta una dependencia. Instala la librería que pide el mod, como Fabric API.': 'Falta uma dependência. Instale a biblioteca que o mod pede, como a Fabric API.',
+  'Problema gráfico. Actualiza los drivers, desactiva los shaders o prueba otra variable de entorno OpenGL.': 'Problema gráfico. Atualize os drivers, desative os shaders ou teste outra variável de ambiente OpenGL.',
+  'El sistema cerró el juego por falta de RAM. Baja la memoria asignada o cierra otras aplicaciones.': 'O sistema fechou o jogo por falta de RAM. Diminua a memória alocada ou feche outros aplicativos.',
+  'Hay una nueva versión de Nebula Launcher': 'Há uma nova versão do Nebula Launcher', 'Descargar': 'Baixar',
+  'Novedades': 'Novidades', 'Instalado': 'Instalado', 'Modpack instalado como instancia': 'Modpack instalado como instância', 'Crea o elige una instancia de destino': 'Crie ou escolha uma instância de destino',
+  'Exportado': 'Exportado', 'Importar': 'Importar', 'dependencia(s)': 'dependência(s)', 'Instalado con': 'Instalado com',
+  'Descargando archivos del juego': 'Baixando arquivos do jogo', 'Preparando versión': 'Preparando versão', 'Comprobando cuenta': 'Verificando conta', 'Leyendo índice de recursos': 'Lendo índice de recursos',
+  'Preparando Java': 'Preparando Java', 'Iniciando Minecraft': 'Iniciando o Minecraft', 'Minecraft en ejecución': 'Minecraft em execução', 'Descargando Java': 'Baixando Java',
+  'Instalando Forge': 'Instalando Forge', 'Instalando NeoForge': 'Instalando NeoForge', 'Buscando versión del modpack': 'Procurando versão do modpack', 'Descargando modpack': 'Baixando modpack',
+  'Creando instancia': 'Criando instância', 'Descargando contenido del modpack': 'Baixando conteúdo do modpack', 'Modpack instalado': 'Modpack instalado',
+  'Español': 'Espanhol', 'Inglés': 'Inglês', 'Português': 'Português', 'Añadir cuenta': 'Adicionar conta',
+  'Optimizar': 'Otimizar', 'Optimizando…': 'Otimizando…', 'Optimizando instancia': 'Otimizando instância', 'Instancia optimizada': 'Instância otimizada',
+  'mod(s) de rendimiento': 'mod(s) de desempenho', 'Detalles': 'Detalhes', 'Galería': 'Galeria', 'Descripción': 'Descrição',
+  'Verificar y reparar': 'Verificar e reparar', 'Verificando archivos': 'Verificando arquivos', 'Reparando archivos': 'Reparando arquivos',
+  'archivos reparados': 'arquivos reparados', 'archivos verificados, todo en orden': 'arquivos verificados, tudo em ordem',
+  'Cambiar icono (PNG)': 'Trocar ícone (PNG)', 'Quitar icono': 'Remover ícone', 'Icono actualizado': 'Ícone atualizado',
+  'Importar instancia': 'Importar instância', 'Importando instancia…': 'Importando instância…', 'importada': 'importada',
+  'Actualizar estado': 'Atualizar status', 'Consultando…': 'Consultando…',
+  'Minimizar a la bandeja del sistema al cerrar la ventana': 'Minimizar para a bandeja do sistema ao fechar a janela',
+  'favoritos': 'favoritos',
+  'Skins y capas': 'Skins e capas', 'Aplicar': 'Aplicar', 'Poner': 'Colocar', 'Quitar': 'Remover', 'ACTIVA': 'ATIVA',
+  'Capa activada': 'Capa ativada', 'Capa quitada': 'Capa removida', 'opcional': 'opcional',
+  'Skin guardada en el armario': 'Skin salva no armário', 'Skin aplicada a tu cuenta': 'Skin aplicada à sua conta',
+  'Servidores populares': 'Servidores populares', 'Actualizar modpack': 'Atualizar modpack', 'Modpack actualizado': 'Modpack atualizado',
+  'Usar como icono': 'Usar como ícone', 'Captura puesta como icono de la instancia': 'Captura definida como ícone da instância',
+  'Preset colocado; pulsa Guardar para aplicarlo': 'Preset inserido; pressione Salvar para aplicá-lo',
+  'Esta instancia no guarda el modpack de Modrinth de origen': 'Esta instância não guarda o modpack de origem do Modrinth',
+  'Ese servidor ya está en la lista': 'Esse servidor já está na lista',
+  'Acerca de Nebula': 'Sobre o Nebula', 'Modpack de Modrinth actualizado': 'Modpack do Modrinth atualizado',
+  'Capas de tu cuenta': 'Capas da sua conta', 'Capa': 'Capa',
+  'Poner skin': 'Aplicar skin', 'Elegir capa (PNG)': 'Escolher capa (PNG)', 'Skin local': 'Skin local',
+  'Añadir': 'Adicionar', 'Nombre': 'Nome', 'Modpack': 'Modpack', 'Instancia': 'Instância',
+};
+
+const FR = {
+  'Inicio': 'Accueil', 'Instancias': 'Instances', 'Descubrir': 'Découvrir', 'Cuentas': 'Comptes', 'Consola': 'Console', 'Ajustes': 'Paramètres',
+  'Jugar': 'Jouer', 'Detener': 'Arrêter', 'Crear instancia': 'Créer une instance', 'Nueva instancia': 'Nouvelle instance', 'Tu primera instancia': 'Votre première instance',
+  'Elige una versión y un cargador para empezar a jugar.': 'Choisissez une version et un loader pour commencer à jouer.',
+  'Instancias recientes': 'Instances récentes', 'Ver todas': 'Voir toutes', 'Novedades de Minecraft': 'Nouveautés de Minecraft', 'Cargando novedades…': 'Chargement des nouveautés…',
+  'No se pudieron cargar las novedades. Comprueba tu conexión.': 'Impossible de charger les nouveautés. Vérifiez votre connexion.',
+  'Aún no tienes instancias': "Vous n'avez pas encore d'instances", 'Cada instancia tiene sus propios mods, mundos y ajustes.': 'Chaque instance a ses propres mods, mondes et paramètres.',
+  'Contenido': 'Contenu', 'Abrir carpeta': 'Ouvrir le dossier', 'Editar': 'Modifier', 'Eliminar': 'Supprimer', 'Duplicar': 'Dupliquer', 'Exportar modpack': 'Exporter le modpack',
+  'Importar modpack': 'Importer le modpack', 'Sin grupo': 'Sans groupe', 'Tiempo jugado': 'Temps de jeu',
+  'Mods': 'Mods', 'Modpacks': 'Modpacks', 'Texturas': 'Textures', 'Shaders': 'Shaders', 'Mundos': 'Mondes', 'Servidores': 'Serveurs', 'Copias': 'Sauvegardes',
+  'Buscar en': 'Rechercher dans', 'Relevancia': 'Pertinence', 'Descargas': 'Téléchargements', 'Más nuevos': 'Plus récents', 'Actualizados': 'Mis à jour', 'Sin instancias': 'Aucune instance',
+  'Instancia de destino': 'Instance cible', 'Ordenar': 'Trier par', 'Sin resultados. Prueba con otra búsqueda.': 'Aucun résultat. Essayez une autre recherche.', 'Buscando…': 'Recherche…',
+  'descargas': 'téléchargements', 'Instalar como instancia': 'Installer comme instance', 'Instalar': 'Installer', 'Cargar más': 'Charger plus', 'Cargando…': 'Chargement…',
+  'Inicia sesión con tu cuenta que posee Minecraft Java para jugar en servidores oficiales.': "Connectez-vous avec le compte qui possède Minecraft Java pour jouer sur les serveurs officiels.",
+  'Iniciar sesión con Microsoft': 'Se connecter avec Microsoft', 'Sin conexión': 'Hors ligne', 'Cuenta Microsoft': 'Compte Microsoft',
+  'Juega en modo individual o en servidores sin verificación con cualquier nombre.': 'Jouez en solo ou sur des serveurs sans vérification avec n’importe quel nom.',
+  'Nombre de jugador': 'Nom du joueur', 'Tus cuentas': 'Vos comptes', 'Todavía no hay cuentas añadidas.': "Aucun compte ajouté pour le moment.", 'En uso': 'En cours', 'Usar': 'Utiliser',
+  'Quitar cuenta': 'Retirer le compte', 'Cambiar skin': 'Changer de skin', 'Skin': 'Skin', 'Clásica': 'Classique', 'Delgada': 'Fine', 'Elegir archivo PNG': 'Choisir un fichier PNG', 'Modelo': 'Modèle',
+  'Limpiar': 'Effacer', 'Guardar cambios': 'Enregistrer les modifications', 'Abrir carpeta de datos': 'Ouvrir le dossier de données', 'Memoria': 'Mémoire', 'Máxima': 'Maximale', 'Mínima': 'Minimale', 'de': 'de',
+  'Ruta de Java (vacío = automática, se descarga si hace falta)': 'Chemin de Java (vide = automatique, téléchargé si nécessaire)', 'Argumentos de JVM': 'Arguments de la JVM',
+  'Comando envoltorio (por ejemplo gamemoderun o mangohud)': 'Commande wrapper (par exemple gamemoderun ou mangohud)', 'Ancho de ventana': 'Largeur de la fenêtre', 'Alto de ventana': 'Hauteur de la fenêtre',
+  'Descargas simultáneas': 'Téléchargements simultanés', 'Linux': 'Linux', 'Variables de entorno (una por línea, CLAVE=valor)': 'Variables d’environnement (une par ligne, CLÉ=valeur)',
+  'Comando antes de jugar': 'Commande avant de jouer', 'Comando al cerrar el juego': 'Commande à la fermeture du jeu', 'Idioma': 'Langue',
+  'Repositorio de actualizaciones (usuario/repo en GitHub)': 'Dépôt de mises à jour (utilisateur/repo sur GitHub)',
+  'Cuentas y servicios': 'Comptes et services', 'Ajustes guardados': 'Paramètres enregistrés',
+  'Cancelar': 'Annuler', 'Crear': 'Créer', 'Creando…': 'Création…', 'Guardar': 'Enregistrer', 'Cerrar': 'Fermer', 'Cargador': 'Loader', 'Versión de Minecraft': 'Version de Minecraft', 'Versión del cargador': 'Version du loader',
+  'No aplica': 'Sans objet', 'Mostrar snapshots y versiones antiguas': 'Afficher les snapshots et anciennes versions', '(última)': '(dernière)', 'No disponible para esta versión': 'Indisponible pour cette version', 'Error de red': 'Erreur réseau',
+  'Escribe un nombre para la instancia': 'Saisissez un nom pour l’instance', 'Instancia creada': 'Instance créée', 'Editar instancia': 'Modifier l’instance', 'Grupo': 'Groupe', 'Color': 'Couleur',
+  'Memoria máxima en MB (vacío = global)': 'Mémoire maximale en MB (vide = global)', 'Ruta de Java (vacío = global)': 'Chemin de Java (vide = global)', 'Argumentos de JVM adicionales': 'Arguments JVM supplémentaires',
+  'Variables de entorno de la instancia': "Variables d'environnement de l'instance", 'Eliminar instancia': 'Supprimer l’instance', 'No se puede deshacer.': 'Impossible d’annuler.',
+  'Se borrarán': 'Cela supprimera', 'sus mundos y su configuración.': 'ses mondes et ses paramètres.',
+  'Desactivar': 'Désactiver', 'Activar': 'Activer', 'desactivado': 'désactivé', 'Carpeta': 'Dossier', 'No hay nada aquí todavía. Búscalo en Descubrir.': 'Rien ici pour l’instant. Cherchez dans Découvrir.',
+  'Añadir archivo': 'Ajouter un fichier', 'Buscar actualizaciones': 'Vérifier les mises à jour', 'Actualizar': 'Mettre à jour', 'Actualizar todo': 'Tout mettre à jour', 'Todo está al día': 'Tout est à jour',
+  'actualizaciones disponibles': 'mises à jour disponibles', 'Crear copia ahora': 'Sauvegarder maintenant', 'Restaurar': 'Restaurer', 'Copia creada': 'Sauvegarde créée', 'Copia restaurada': 'Sauvegarde restaurée',
+  'Las copias guardan todos los mundos de la instancia.': 'Les sauvegardes stockent tous les mondes de l’instance.', 'Arrastra archivos aquí para añadirlos': 'Déposez ici les fichiers à ajouter',
+  'Dirección del servidor': 'Adresse du serveur', 'Nombre del servidor': 'Nom du serveur', 'Aún no hay servidores. Añade uno para entrar directo al iniciar.': "Aucun serveur pour l'instant. Ajoutez-en un pour rejoindre directement au lancement.",
+  'Entrar': 'Rejoindre', 'Servidor añadido': 'Serveur ajouté',
+  'Abre la página de Microsoft e introduce este código:': 'Ouvrez la page Microsoft et saisissez ce code :',
+  'Abrir página de inicio de sesión': 'Ouvrir la page de connexion', 'Esperando a que completes el inicio de sesión…': 'En attente de votre connexion…',
+  'Sesión iniciada correctamente': 'Connecté avec succès', 'No se pudo iniciar sesión': 'Échec de la connexion',
+  'Añade una cuenta para jugar': 'Ajoutez un compte pour jouer', 'Preparando…': 'Préparation…', 'Cancelar descarga': 'Annuler le téléchargement',
+  'Minecraft se cerró con un error': 'Minecraft s’est fermé avec une erreur', 'Minecraft se cerró con un error. Revisa la consola.': 'Minecraft s’est fermé avec une erreur. Vérifiez la console.',
+  'El juego se cerró con un error': 'Le jeu s’est fermé avec une erreur', 'Posibles causas': 'Causes possibles', 'Copiar registro': 'Copier le log', 'Registro copiado': 'Log copié',
+  'No se encontró un patrón conocido. Copia el registro y compártelo para pedir ayuda.': "Aucun motif connu trouvé. Copiez le log et partagez-le pour demander de l'aide.",
+  'Falta memoria. Sube la memoria máxima en Ajustes o en la instancia.': 'Mémoire insuffisante. Augmentez la mémoire maximale dans Paramètres ou dans l’instance.',
+  'La versión de Java no coincide. Deja la ruta de Java vacía para que Nebula use la correcta.': 'Version de Java incorrecte. Laissez le chemin de Java vide pour que Nebula utilise la bonne.',
+  'Un mod no es compatible con esta versión del juego o con otro mod. Desactiva los mods recientes e inténtalo de nuevo.': 'Un mod est incompatible avec cette version du jeu ou avec un autre mod. Désactivez les mods récents et réessayez.',
+  'Falta una dependencia. Instala la librería que pide el mod, como Fabric API.': 'Une dépendance manque. Installez la bibliothèque demandée par le mod, comme Fabric API.',
+  'Problema gráfico. Actualiza los drivers, desactiva los shaders o prueba otra variable de entorno OpenGL.': 'Problème graphique. Mettez à jour vos pilotes, désactivez les shaders ou essayez une autre variable OpenGL.',
+  'El sistema cerró el juego por falta de RAM. Baja la memoria asignada o cierra otras aplicaciones.': "Le système a fermé le jeu par manque de RAM. Réduisez la mémoire allouée ou fermez d'autres applications.",
+  'Hay una nueva versión de Nebula Launcher': 'Une nouvelle version de Nebula Launcher est disponible', 'Descargar': 'Télécharger',
+  'Novedades': 'Nouveautés', 'Instalado': 'Installé', 'Modpack instalado como instancia': 'Modpack installé comme instance', 'Crea o elige una instancia de destino': 'Créez ou choisissez une instance cible',
+  'Exportado': 'Exporté', 'Importar': 'Importer', 'dependencia(s)': 'dépendance(s)', 'Instalado con': 'Installé avec',
+  'Descargando archivos del juego': 'Téléchargement des fichiers du jeu', 'Preparando versión': 'Préparation de la version', 'Comprobando cuenta': 'Vérification du compte', 'Leyendo índice de recursos': 'Lecture de l’index de ressources',
+  'Preparando Java': 'Préparation de Java', 'Iniciando Minecraft': 'Lancement de Minecraft', 'Minecraft en ejecución': 'Minecraft en cours d’exécution', 'Descargando Java': 'Téléchargement de Java',
+  'Instalando Forge': 'Installation de Forge', 'Instalando NeoForge': 'Installation de NeoForge', 'Buscando versión del modpack': 'Recherche de la version du modpack', 'Descargando modpack': 'Téléchargement du modpack',
+  'Creando instancia': 'Création de l’instance', 'Descargando contenido del modpack': 'Téléchargement du contenu du modpack', 'Modpack instalado': 'Modpack installé',
+  'Español': 'Espagnol', 'Inglés': 'Anglais', 'Português': 'Portugais', 'Añadir cuenta': 'Ajouter un compte',
+  'Optimizar': 'Optimiser', 'Optimizando…': 'Optimisation…', 'Optimizando instancia': 'Optimisation de l’instance', 'Instancia optimizada': 'Instance optimisée',
+  'mod(s) de rendimiento': 'mod(s) de performance', 'Detalles': 'Détails', 'Galería': 'Galerie', 'Descripción': 'Description',
+  'Verificar y reparar': 'Vérifier et réparer', 'Verificando archivos': 'Vérification des fichiers', 'Reparando archivos': 'Réparation des fichiers',
+  'archivos reparados': 'fichiers réparés', 'archivos verificados, todo en orden': 'fichiers vérifiés, tout est en ordre',
+  'Cambiar icono (PNG)': 'Changer l’icône (PNG)', 'Quitar icono': 'Retirer l’icône', 'Icono actualizado': 'Icône mise à jour',
+  'Importar instancia': 'Importer une instance', 'Importando instancia…': 'Import de l’instance…', 'importada': 'importée',
+  'Actualizar estado': 'Actualiser le statut', 'Consultando…': 'Interrogation…',
+  'Minimizar a la bandeja del sistema al cerrar la ventana': 'Réduire dans la zone de notification à la fermeture de la fenêtre',
+  'favoritos': 'favoris',
+  'Skins y capas': 'Skins et capes', 'Aplicar': 'Appliquer', 'Poner': 'Porter', 'Quitar': 'Retirer', 'ACTIVA': 'ACTIVE',
+  'Capa activada': 'Cape activée', 'Capa quitada': 'Cape retirée', 'opcional': 'facultatif',
+  'Skin guardada en el armario': 'Skin enregistrée dans la garde-robe', 'Skin aplicada a tu cuenta': 'Skin appliquée à votre compte',
+  'Servidores populares': 'Serveurs populaires', 'Actualizar modpack': 'Mettre à jour le modpack', 'Modpack actualizado': 'Modpack mis à jour',
+  'Usar como icono': 'Utiliser comme icône', 'Captura puesta como icono de la instancia': 'Capture définie comme icône de l’instance',
+  'Preset colocado; pulsa Guardar para aplicarlo': 'Préréglage inséré ; appuyez sur Enregistrer pour l’appliquer',
+  'Esta instancia no guarda el modpack de Modrinth de origen': 'Cette instance ne conserve pas le modpack d’origine du Modrinth',
+  'Ese servidor ya está en la lista': 'Ce serveur est déjà dans la liste',
+  'Acerca de Nebula': 'À propos de Nebula', 'Modpack de Modrinth actualizado': 'Modpack du Modrinth mis à jour',
+  'Capas de tu cuenta': 'Capes de votre compte', 'Capa': 'Cape',
+  'Poner skin': 'Appliquer le skin', 'Elegir capa (PNG)': 'Choisir une cape (PNG)', 'Skin local': 'Skin locale',
+  'Añadir': 'Ajouter', 'Nombre': 'Nom', 'Modpack': 'Modpack', 'Instancia': 'Instance',
+};
+
+const DICTS = { en: EN, pt: PT, fr: FR };
+const DICT_KEYS = Object.fromEntries(Object.entries(DICTS).map(([k, d]) => [k, Object.keys(d).sort((a, b) => b.length - a.length)]));
+DICT_KEYS.pt = DICT_KEYS.pt.filter((k) => PT[k]);
 function tr(str) {
-  if (!S.settings || S.settings.language !== 'en') return str;
+  const D = DICTS[S.settings && S.settings.language];
+  if (!D) return str;
+  const keys = DICT_KEYS[S.settings.language];
   const stash = [];
-  let out = String(str).replace(/data:[a-z]+\/[a-z]+;base64,[A-Za-z0-9+/=]+/g, (m) => {
+  let out = String(str).replace(/data:[a-z]+\/[a-z]+;base64,[A-Za-z0-9+\/=]+/g, (m) => {
     stash.push(m);
     return `\u0001${stash.length}\u0001`;
   });
-  for (const k of EN_KEYS) if (out.includes(k)) out = out.split(k).join(EN[k]);
+  for (const k of keys) if (out.includes(k)) out = out.split(k).join(D[k]);
   return out.replace(/\u0001(\d+)\u0001/g, (_, n) => stash[Number(n) - 1] || '');
 }
 
@@ -607,7 +774,7 @@ function viewSettings() {
       </div>
       <div class="panel stack">
         <h2>Aplicación</h2>
-        <label class="field"><span>Idioma</span><select id="s-lang"><option value="es" ${s.language === 'es' ? 'selected' : ''}>Español</option><option value="en" ${s.language === 'en' ? 'selected' : ''}>Inglés</option></select></label>
+        <label class="field"><span>Idioma</span><select id="s-lang"><option value="es" ${s.language === 'es' ? 'selected' : ''}>Español</option><option value="en" ${s.language === 'en' ? 'selected' : ''}>Inglés</option><option value="pt" ${s.language === 'pt' ? 'selected' : ''}>Português</option><option value="fr" ${s.language === 'fr' ? 'selected' : ''}>Français</option></select></label>
         <label class="field"><span>Interfaz</span><select id="s-theme"><option value="dark" ${viewTheme() === 'dark' ? 'selected' : ''}>Aurora oscuro</option><option value="light" ${viewTheme() === 'light' ? 'selected' : ''}>Aurora claro</option><option value="contrast" ${viewTheme() === 'contrast' ? 'selected' : ''}>Blanco y negro (elegante)</option></select></label>
         <label class="row"><input type="checkbox" id="s-sound" ${localStorage.getItem('nebula-sound') !== '0' ? 'checked' : ''}> <span class="muted">Sonidos del launcher (inicio y fin de partida)</span></label>
         <label class="field"><span>Repositorio de actualizaciones (usuario/repo en GitHub)</span><input type="text" id="s-repo" value="${esc(s.update_repo)}" placeholder="usuario/nebula-launcher"></label>
@@ -1851,7 +2018,8 @@ async function boot() {
     const running = await api('running', {}, true);
     S.running = new Set(running);
   } catch (_) {
-    S.settings = S.settings || { min_memory: 1024, max_memory: 4096, java_path: '', jvm_args: '', wrapper: '', width: 1280, height: 720, concurrency: 32, show_snapshots: false, theme: 'dark' };
+    S.settings = S.settings || { language: 'es', min_memory: 1024, max_memory: 4096, java_path: '', jvm_args: '', wrapper: '', width: 1280, height: 720, concurrency: 32, show_snapshots: false, theme: 'dark' };
+    if (!S.settings.language) S.settings.language = 'es';
   }
   S.discover.target = S.activeInstance || '';
   renderRail();
