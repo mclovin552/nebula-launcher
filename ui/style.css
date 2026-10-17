@@ -231,6 +231,13 @@ textarea { resize: vertical; min-height: 70px; }
 .mod .ph { display: grid; place-items: center; color: var(--muted); }
 
 .list { display: flex; flex-direction: column; gap: 8px; }
+.sheet .list {
+  max-height: calc(88vh - 190px);
+  min-height: 160px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.sheet .list .item { flex: 0 0 auto; }
 .item {
   display: flex; align-items: center; gap: 12px; padding: 10px 14px;
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
