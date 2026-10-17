@@ -207,8 +207,15 @@ function toast(msg, kind = '') {
   setTimeout(() => el.remove(), kind === 'err' ? 8000 : 4000);
 }
 
+function viewTheme() {
+  const t = S.settings && S.settings.theme;
+  const dark = !t || t === 'dark';
+  return dark ? 'dark' : t;
+}
+
 function applyTheme() {
-  document.body.classList.toggle('light', (S.settings && S.settings.theme) === 'light');
+  document.body.classList.toggle('light', viewTheme() === 'light');
+  document.body.classList.toggle('contrast', viewTheme() === 'contrast');
 }
 
 let AC = null;
@@ -588,7 +595,7 @@ function viewSettings() {
       <div class="panel stack">
         <h2>Aplicación</h2>
         <label class="field"><span>Idioma</span><select id="s-lang"><option value="es" ${s.language === 'es' ? 'selected' : ''}>Español</option><option value="en" ${s.language === 'en' ? 'selected' : ''}>Inglés</option></select></label>
-        <label class="field"><span>Tema</span><select id="s-theme"><option value="dark" ${s.theme !== 'light' ? 'selected' : ''}>Oscuro</option><option value="light" ${s.theme === 'light' ? 'selected' : ''}>Claro</option></select></label>
+        <label class="field"><span>Interfaz</span><select id="s-theme"><option value="dark" ${viewTheme() === 'dark' ? 'selected' : ''}>Aurora oscuro</option><option value="light" ${viewTheme() === 'light' ? 'selected' : ''}>Aurora claro</option><option value="contrast" ${viewTheme() === 'contrast' ? 'selected' : ''}>Blanco y negro (elegante)</option></select></label>
         <label class="row"><input type="checkbox" id="s-sound" ${localStorage.getItem('nebula-sound') !== '0' ? 'checked' : ''}> <span class="muted">Sonidos del launcher (inicio y fin de partida)</span></label>
         <label class="field"><span>Repositorio de actualizaciones (usuario/repo en GitHub)</span><input type="text" id="s-repo" value="${esc(s.update_repo)}" placeholder="usuario/nebula-launcher"></label>
         <label class="row"><input type="checkbox" id="s-tray" ${s.close_to_tray !== false ? 'checked' : ''}> <span class="muted">Minimizar a la bandeja del sistema al cerrar la ventana</span></label>
@@ -621,9 +628,10 @@ function bindSettings() {
   if (snd) snd.onchange = () => localStorage.setItem('nebula-sound', snd.checked ? '1' : '0');
   const thm = $('#s-theme');
   if (thm) thm.onchange = () => {
-    const v = thm.value === 'light' ? 'light' : 'dark';
+    S.settings.theme = thm.value;
     applyTheme();
-    document.body.classList.toggle('theme-preview-light', v === 'light');
+    document.body.classList.toggle('theme-preview-light', thm.value === 'light');
+    document.body.classList.toggle('theme-preview-contrast', thm.value === 'contrast');
   };
 }
 

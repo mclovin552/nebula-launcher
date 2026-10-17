@@ -247,18 +247,58 @@ async fn ensure_csl(_app: AppHandle, instance_id: &str) -> Result<(), String> {
         );
     }
     let game = crate::instances::game_dir(instance_id);
+    let mut installed = false;
     if let Ok(rd) = std::fs::read_dir(game.join("mods")) {
         for e in rd.flatten() {
             let n = e.file_name().to_string_lossy().to_lowercase();
             if n.starts_with("customskinloader") {
-                return Ok(());
+                installed = true;
+                break;
             }
         }
     }
-    crate::modrinth::install_project("mod", "customskinloader", instance_id)
-        .await
-        .map(|_| ())
-        .map_err(|e| format!("No se pudo instalar CustomSkinLoader: {e}"))
+    if !installed {
+        crate::modrinth::install_project("mod", "customskinloader", instance_id)
+            .await
+            .map_err(|e| format!("No se pudo instalar CustomSkinLoader: {e}"))?;
+    }
+    write_csl_config(&game)
+}
+
+fn write_csl_config(game: &std::path::Path) -> Result<(), String> {
+    let dir = game.join("CustomSkinLoader");
+    std::fs::create_dir_all(&dir).ctx()?;
+    let cfg = serde_json::json!({
+        "version": "14.15",
+        "buildNumber": 0,
+        "enableTransparentSkin": true,
+        "forceLoadAllTextures": true,
+        "enableCape": true,
+        "threadPoolSize": 8,
+        "cacheExpiry": 30,
+        "loadlist": [
+            {
+                "name": "LocalSkin",
+                "type": "Legacy",
+                "checkPNG": false,
+                "model": "auto",
+                "skin": "LocalSkin/skins/{USERNAME}.png",
+                "cape": "LocalSkin/capes/{USERNAME}.png",
+                "elytra": "LocalSkin/elytras/{USERNAME}.png"
+            },
+            {
+                "name": "Mojang",
+                "type": "MojangAPI",
+                "apiRoot": "https://api.mojang.com/",
+                "sessionRoot": "https://sessionserver.mojang.com/session/minecraft/profile/"
+            }
+        ]
+    });
+    std::fs::write(
+        dir.join("CustomSkinLoader.json"),
+        serde_json::to_string_pretty(&cfg).ctx()?,
+    )
+    .ctx()
 }
 
 pub async fn local_skin(
