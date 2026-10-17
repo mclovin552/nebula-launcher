@@ -156,7 +156,7 @@ const EN = {
   'Instalando Forge': 'Installing Forge', 'Instalando NeoForge': 'Installing NeoForge', 'Buscando versión del modpack': 'Looking up modpack version', 'Descargando modpack': 'Downloading modpack',
   'Creando instancia': 'Creating instance', 'Descargando contenido del modpack': 'Downloading modpack content', 'Modpack instalado': 'Modpack installed',
   'Español': 'Spanish', 'Inglés': 'English', 'Añadir cuenta': 'Add account',
-  'Bosque': 'Forest', 'Océano': 'Ocean',
+  'Bosque': 'Forest', 'Océano': 'Ocean', 'Atardecer': 'Sunset',
   'Optimizar': 'Optimize', 'Optimizando…': 'Optimizing…', 'Optimizando instancia': 'Optimizing instance', 'Instancia optimizada': 'Instance optimized',
   'mod(s) de rendimiento': 'performance mod(s)', 'Detalles': 'Details', 'Galería': 'Gallery', 'Descripción': 'Description',
   'Verificar y reparar': 'Verify and repair', 'Verificando archivos': 'Verifying files', 'Reparando archivos': 'Repairing files',
@@ -238,7 +238,7 @@ const PT = {
   'Instalando Forge': 'Instalando Forge', 'Instalando NeoForge': 'Instalando NeoForge', 'Buscando versión del modpack': 'Procurando versão do modpack', 'Descargando modpack': 'Baixando modpack',
   'Creando instancia': 'Criando instância', 'Descargando contenido del modpack': 'Baixando conteúdo do modpack', 'Modpack instalado': 'Modpack instalado',
   'Español': 'Espanhol', 'Inglés': 'Inglês', 'Português': 'Português', 'Añadir cuenta': 'Adicionar conta',
-  'Bosque': 'Floresta', 'Océano': 'Oceano',
+  'Bosque': 'Floresta', 'Océano': 'Oceano', 'Atardecer': 'Pôr do sol',
   'Optimizar': 'Otimizar', 'Optimizando…': 'Otimizando…', 'Optimizando instancia': 'Otimizando instância', 'Instancia optimizada': 'Instância otimizada',
   'mod(s) de rendimiento': 'mod(s) de desempenho', 'Detalles': 'Detalhes', 'Galería': 'Galeria', 'Descripción': 'Descrição',
   'Verificar y reparar': 'Verificar e reparar', 'Verificando archivos': 'Verificando arquivos', 'Reparando archivos': 'Reparando arquivos',
@@ -320,7 +320,7 @@ const FR = {
   'Instalando Forge': 'Installation de Forge', 'Instalando NeoForge': 'Installation de NeoForge', 'Buscando versión del modpack': 'Recherche de la version du modpack', 'Descargando modpack': 'Téléchargement du modpack',
   'Creando instancia': 'Création de l’instance', 'Descargando contenido del modpack': 'Téléchargement du contenu du modpack', 'Modpack instalado': 'Modpack installé',
   'Español': 'Espagnol', 'Inglés': 'Anglais', 'Português': 'Portugais', 'Añadir cuenta': 'Ajouter un compte',
-  'Bosque': 'Forêt', 'Océano': 'Océan',
+  'Bosque': 'Forêt', 'Océano': 'Océan', 'Atardecer': 'Coucher de soleil',
   'Optimizar': 'Optimiser', 'Optimizando…': 'Optimisation…', 'Optimizando instancia': 'Optimisation de l’instance', 'Instancia optimizada': 'Instance optimisée',
   'mod(s) de rendimiento': 'mod(s) de performance', 'Detalles': 'Détails', 'Galería': 'Galerie', 'Descripción': 'Description',
   'Verificar y reparar': 'Vérifier et réparer', 'Verificando archivos': 'Vérification des fichiers', 'Reparando archivos': 'Réparation des fichiers',
@@ -384,10 +384,10 @@ function viewTheme() {
 }
 
 function applyTheme() {
-  ['light', 'contrast', 'forest', 'oceano'].forEach((t) => document.body.classList.toggle(t, viewTheme() === t));
+  ['light', 'contrast', 'forest', 'oceano', 'atardecer'].forEach((t) => document.body.classList.toggle(t, viewTheme() === t));
 }
 function themeLabel(t) {
-  return { dark: 'Aurora oscuro', light: 'Aurora claro', contrast: 'Blanco y negro (elegante)', forest: 'Bosque', oceano: 'Océano' }[t] || '';
+  return { dark: 'Aurora oscuro', light: 'Aurora claro', contrast: 'Blanco y negro (elegante)', forest: 'Bosque', oceano: 'Océano', atardecer: 'Atardecer' }[t] || '';
 }
 
 let AC = null;
@@ -810,7 +810,7 @@ function viewSettings() {
       <div class="panel stack">
         <h2>Aplicación</h2>
         <label class="field"><span>Idioma</span><select id="s-lang"><option value="es" ${s.language === 'es' ? 'selected' : ''}>Español</option><option value="en" ${s.language === 'en' ? 'selected' : ''}>Inglés</option><option value="pt" ${s.language === 'pt' ? 'selected' : ''}>Português</option><option value="fr" ${s.language === 'fr' ? 'selected' : ''}>Français</option></select></label>
-        <label class="field"><span>Interfaz</span><select id="s-theme"><option value="dark" ${viewTheme() === 'dark' ? 'selected' : ''}>Aurora oscuro</option><option value="light" ${viewTheme() === 'light' ? 'selected' : ''}>Aurora claro</option><option value="contrast" ${viewTheme() === 'contrast' ? 'selected' : ''}>Blanco y negro (elegante)</option><option value="forest" ${viewTheme() === 'forest' ? 'selected' : ''}>Bosque</option><option value="oceano" ${viewTheme() === 'oceano' ? 'selected' : ''}>Océano</option></select></label>
+        <label class="field"><span>Interfaz</span><select id="s-theme"><option value="dark" ${viewTheme() === 'dark' ? 'selected' : ''}>Aurora oscuro</option><option value="light" ${viewTheme() === 'light' ? 'selected' : ''}>Aurora claro</option><option value="contrast" ${viewTheme() === 'contrast' ? 'selected' : ''}>Blanco y negro (elegante)</option><option value="forest" ${viewTheme() === 'forest' ? 'selected' : ''}>Bosque</option><option value="oceano" ${viewTheme() === 'oceano' ? 'selected' : ''}>Océano</option><option value="atardecer" ${viewTheme() === 'atardecer' ? 'selected' : ''}>Atardecer</option></select></label>
         <label class="row"><input type="checkbox" id="s-sound" ${localStorage.getItem('nebula-sound') !== '0' ? 'checked' : ''}> <span class="muted">Sonidos del launcher (inicio y fin de partida)</span></label>
         <label class="field"><span>Repositorio de actualizaciones (usuario/repo en GitHub)</span><input type="text" id="s-repo" value="${esc(s.update_repo)}" placeholder="usuario/nebula-launcher"></label>
         <label class="row"><input type="checkbox" id="s-tray" ${s.close_to_tray !== false ? 'checked' : ''}> <span class="muted">Minimizar a la bandeja del sistema al cerrar la ventana</span></label>
@@ -828,6 +828,8 @@ function viewSettings() {
       <div class="panel stack">
         <h2>Acerca de</h2>
         <p class="muted">Nebula Launcher — lanzador de Minecraft Java de código abierto (MIT).</p>
+        <button class="btn small ghost" data-act="ver-history" style="align-self:flex-start">📜 Historial de versiones</button>
+        <div id="ver-list" class="stack" hidden></div>
         <div class="row wrap"><button class="btn small" data-act="about">Acerca de Nebula</button></div>
       </div>
       <div class="row"><button class="btn primary" data-act="save-settings">Guardar cambios</button><button class="btn" data-act="folder-root">${ic('folder')}Abrir carpeta de datos</button></div>
@@ -1460,6 +1462,23 @@ function onProgress(p) {
 
 const actions = {
   nav: (d) => setView(d.view),
+  verHistory: async () => {
+    const box = document.getElementById('ver-list');
+    if (!box) return;
+    if (box.dataset.loaded) {
+      box.hidden = !box.hidden;
+      return;
+    }
+    box.hidden = false;
+    box.textContent = 'Cargando…';
+    try {
+      const rels = await fetch('https://api.github.com/repos/mclovin552/nebula-launcher/releases?per_page=20').then((r) => r.json());
+      box.innerHTML = rels.length ? rels.map((r) => `<div class="panel" style="padding:10px 12px"><div class="row between"><b>${esc(r.tag_name)}</b><span class="muted" style="font-size:12px">${esc((r.published_at || '').slice(0, 10))}</span></div><p class="muted" style="font-size:12.5px;white-space:pre-wrap">${esc((r.body || '').slice(0, 400))}</p></div>`).join('') : '<p class="muted">Sin versiones publicadas.</p>';
+      box.dataset.loaded = '1';
+    } catch (_) {
+      box.textContent = 'No se pudo cargar el historial (¿sin internet?)';
+    }
+  },
   catalog: () => {
     S.discover.kind = 'modpack';
     S.discover.items = [];

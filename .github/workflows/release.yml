@@ -15,9 +15,15 @@ jobs:
             args: ''
           - platform: 'windows-latest'
             args: ''
+          - platform: 'macos-latest'
+            args: '--target universal-apple-darwin'
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: generar iconos (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: npx --yes @tauri-apps/cli@2 icon src-tauri/icons/icon.png
 
       - name: instalar dependencias
         if: matrix.platform == 'ubuntu-22.04'

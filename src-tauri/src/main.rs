@@ -382,8 +382,8 @@ async fn check_mod_status(id: String) -> Result<modrinth::ModsStatus, String> {
 
 #[tauri::command]
 async fn self_update(app: AppHandle) -> Result<String, String> {
-    if !cfg!(windows) {
-        return Err("La actualización con un clic funciona en Windows. En Linux, descarga el AppImage nuevo desde Releases.".to_string());
+    if !cfg!(windows) && !cfg!(target_os = "macos") {
+        return Err("La actualización con un clic funciona en Windows y macOS. En Linux, descarga el AppImage nuevo desde Releases.".to_string());
     }
     let repo = settings::load().update_repo;
     let repo = repo.trim().to_string();
@@ -419,7 +419,13 @@ async fn self_update(app: AppHandle) -> Result<String, String> {
             a.iter().find(|x| {
                 x.get("name")
                     .and_then(|n| n.as_str())
-                    .map(|n| n.ends_with("_x64-setup.exe"))
+                    .map(|n| {
+                        if cfg!(windows) {
+                            n.ends_with("_x64-setup.exe")
+                        } else {
+                            n.ends_with(".dmg")
+                        }
+                    })
                     .unwrap_or(false)
             })
         })
@@ -428,22 +434,43 @@ async fn self_update(app: AppHandle) -> Result<String, String> {
         .get("browser_download_url")
         .and_then(|u| u.as_str())
         .ok_or("URL inválida")?;
-    let bytes = http::get_bytes(url).await?;
-    let tmp = std::env::temp_dir().join(format!("nebula-setup-{}.exe", env!("CARGO_PKG_VERSION")));
-    tokio::fs::write(&tmp, &bytes)
-        .await
-        .map_err(|e| e.to_string())?;
-    let mut cmd = std::process::Command::new(&tmp);
-    cmd.arg("/S");
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
+    if cfg!(windows) {
+        let bytes = http::get_bytes(url).await?;
+        let tmp =
+            std::env::temp_dir().join(format!("nebula-setup-{}.exe", env!("CARGO_PKG_VERSION")));
+        tokio::fs::write(&tmp, &bytes)
+            .await
+            .map_err(|e| e.to_string())?;
+        let mut cmd = std::process::Command::new(&tmp);
+        cmd.arg("/S");
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        cmd.spawn().map_err(|e| e.to_string())?;
+        app.exit(0);
+        return Ok("Instalando la nueva versión…".to_string());
     }
-    cmd.spawn().map_err(|e| e.to_string())?;
+    let tmp = std::env::temp_dir().join(format!(
+        "Nebula-{}-installer.dmg",
+        env!("CARGO_PKG_VERSION")
+    ));
+    let _ = tokio::fs::remove_file(&tmp).await;
+    http::download(&http::Job {
+        url: url.to_string(),
+        path: tmp.clone(),
+        sha1: None,
+        size: 0,
+    })
+    .await?;
+    std::process::Command::new("open")
+        .arg(&tmp)
+        .spawn()
+        .map_err(|e| e.to_string())?;
     app.exit(0);
-    Ok("Instalando la nueva versión…".to_string())
+    Ok("Descargué el .dmg: arrastrala a Aplicaciones para actualizar".to_string())
 }
 
 #[derive(Serialize)]
