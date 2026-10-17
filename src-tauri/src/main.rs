@@ -447,6 +447,35 @@ struct UpdateInfo {
 }
 
 #[tauri::command]
+async fn skin_gallery(page: i64) -> Result<Vec<Value>, String> {
+    let url = format!(
+        "https://api.mineskin.org/get/list/?size=24&page={}&visibility=public",
+        page.clamp(1, 500)
+    );
+    let v: Value = http::get_json(&url).await?;
+    let arr = v
+        .get("skins")
+        .and_then(|s| s.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let out: Vec<Value> = arr
+        .into_iter()
+        .filter_map(|s| {
+            let raw = s.get("url").and_then(|u| u.as_str())?;
+            let url = raw.replacen("http://", "https://", 1);
+            if !url.starts_with("https://textures.minecraft.net/") {
+                return None;
+            }
+            Some(json!({
+                "url": url,
+                "id": s.get("id").and_then(|i| i.as_i64()).unwrap_or(0) as i64,
+            }))
+        })
+        .collect();
+    Ok(out)
+}
+
+#[tauri::command]
 async fn check_launcher_update() -> Result<UpdateInfo, String> {
     let repo = settings::load().update_repo;
     let repo = repo.trim().to_string();
@@ -789,6 +818,7 @@ fn main() {
             java_status,
             install_java,
             java_scan,
+            skin_gallery,
             app_info,
             reorder_instances,
             skin_lookup,

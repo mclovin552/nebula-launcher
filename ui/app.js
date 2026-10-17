@@ -1164,6 +1164,26 @@ async function openPopular() {
   });
 }
 
+async function wgLoad() {
+  const g = S.wGallery || (S.wGallery = { page: 1, items: [] });
+  try {
+    const items = await api('skin_gallery', { page: g.page }, true);
+    g.items = g.items.concat(items || []);
+    g.page += 1;
+    const box = document.getElementById('w-gallery');
+    if (!box) return;
+    box.innerHTML = g.items.map((it) => `
+      <div class="card" style="padding:10px;display:flex;flex-direction:column;align-items:center;gap:8px">
+        ${skinCube(it.url)}
+        <button class="btn small primary" data-act="wg-add" data-url="${esc(it.url)}" data-name="Galería ${esc(String(it.id))}">Guardar</button>
+      </div>`).join('');
+    const more = document.getElementById('w-more');
+    if (more) more.style.display = '';
+  } catch (_) {
+    toast('No se pudo cargar la galería. Revisa tu conexión.', 'err');
+  }
+}
+
 async function openWardrobe(id) {
   const acc = S.accounts.find((a) => a.id === id);
   if (!acc) return;
@@ -1210,7 +1230,7 @@ async function openWardrobe(id) {
       <div class="stack">
         ${sel}
         <div class="list">${grid}</div>
-        <div class="row wrap"><button class="btn small" data-act="off-cape">Elegir capa (PNG)</button></div>
+        <div class="row wrap"><label class="row" style="gap:8px"><input type="checkbox" id="w-off-all"> Aplicar a todas mis instancias con mods</label><button class="btn small" data-act="off-cape">Elegir capa (PNG)</button></div>
         <p class="muted" style="font-size:13px">La skin se coloca en la carpeta del mod CustomSkinLoader de la instancia elegida (se instala solo si falta) y la verás en partida y servidores sin verificación. Como se lee en local, esta skin solo es visible para ti y con este launcher.</p>
       </div>`;
   } else {
@@ -1228,6 +1248,12 @@ async function openWardrobe(id) {
         <button class="btn" data-act="w-add-file">Elegir PNG</button>
       </div>
       <div class="list">${saved}</div>
+      <h3 style="margin-top:6px">🎨 Galería online</h3>
+      <div class="panel stack" style="padding:16px">
+        <p class="muted" style="font-size:13px">Skins públicas del catálogo de MineSkin. Guarda la que te guste en el armario y ponsela.</p>
+        <div class="row wrap"><button class="btn small primary" data-act="wg-open">Mostrar galería</button><button class="btn small" data-act="wg-more" style="display:none" id="w-more">Cargar más</button></div>
+        <div class="grid" id="w-gallery" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr))"></div>
+      </div>
       <h3 style="margin-top:6px">Capas de tu cuenta</h3>
       ${capesPart}
       <p class="muted" style="font-size:13px">Aplicar envía la skin elegida al perfil oficial de Minecraft; el cambio tarda un momento en aparecer en el juego.</p>
@@ -1558,6 +1584,17 @@ const actions = {
       openWardrobe(wardrobeAcc);
     } catch (_) {}
   },
+  'wg-open': async () => {
+    S.wGallery = { page: 1, items: [] };
+    await wgLoad();
+  },
+  'wg-more': () => wgLoad(),
+  'wg-add': async (d) => {
+    try {
+      await api('wardrobe_add', { source: d.url, name: d.name || 'Galería' });
+      toast('Skin guardada en el armario', 'ok');
+    } catch (_) {}
+  },
   'w-nick': async () => {
     const nick = $('#w-nick') ? $('#w-nick').value.trim() : '';
     if (!nick) return toast('Escribe un nick para buscar');
@@ -1607,13 +1644,19 @@ const actions = {
     } catch (_) {}
   },
   'off-skin': async (d) => {
-    const inst = $('#w-off-inst') ? $('#w-off-inst').value : '';
-    if (!inst) return toast('Crea una instancia con Fabric, Forge, NeoForge o Quilt', 'err');
     const acc = S.accounts.find((a) => a.id === wardrobeAcc);
-    try {
-      await api('offline_skin_apply', { instanceId: inst, player: acc ? acc.name : '', skinId: d.id });
-      toast('Skin colocada en la instancia (CustomSkinLoader)', 'ok');
-    } catch (_) {}
+    const inst = $('#w-off-inst') ? $('#w-off-inst').value : '';
+    const all = document.getElementById('w-off-all') && document.getElementById('w-off-all').checked;
+    const targets = all ? S.instances.filter((i) => i.loader !== 'vanilla').map((i) => i.id) : (inst ? [inst] : []);
+    if (!targets.length) return toast('Crea una instancia con Fabric, Forge, NeoForge o Quilt', 'err');
+    let done = 0;
+    for (const t of targets) {
+      try {
+        await api('offline_skin_apply', { instanceId: t, player: acc ? acc.name : '', skinId: d.id });
+        done += 1;
+      } catch (_) {}
+    }
+    toast(done === targets.length ? `Skin colocada en ${done} instancia(s)` : `Skin colocada en ${done}/${targets.length}`, done ? 'ok' : 'err');
   },
   'off-cape': async () => {
     const inst = $('#w-off-inst') ? $('#w-off-inst').value : '';
