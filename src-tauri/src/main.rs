@@ -346,6 +346,11 @@ struct UpdateInfo {
 async fn check_launcher_update() -> Result<UpdateInfo, String> {
     let repo = settings::load().update_repo;
     let repo = repo.trim().to_string();
+    let repo = if repo.is_empty() {
+        "mclovin552/nebula-launcher".to_string()
+    } else {
+        repo
+    };
     let valid = repo.split('/').count() == 2
         && repo
             .chars()

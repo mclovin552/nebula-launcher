@@ -273,6 +273,18 @@ function renderTop() {
   $('#account-chip').innerHTML = a
     ? `<img src="${headUrl(a)}" alt=""><span>${esc(a.name)}</span>`
     : `<span>${tr('Añadir cuenta')}</span>`;
+  const up = S.updateAv;
+  const old = document.getElementById('update-pill');
+  if (old) old.remove();
+  if (up && up.available && up.version) {
+    const el = document.createElement('button');
+    el.id = 'update-pill';
+    el.dataset.act = 'update-go';
+    el.dataset.url = up.url || 'https://github.com/mclovin552/nebula-launcher/releases/latest';
+    el.title = 'Ir a descargar la versión ' + up.version;
+    el.innerHTML = `<b class="dot">⬆</b><span>Nueva versión <b>${esc(up.version)}</b></span><b class="go">${tr('Actualizar')}</b>`;
+    $('#topbar').appendChild(el);
+  }
 }
 
 function setView(v) {
@@ -1568,6 +1580,7 @@ const actions = {
     renderView();
   },
   'open-url': (d) => api('open_url', { url: d.url }).catch(() => {}),
+  'update-go': (d) => api('open_url', { url: d.url }).catch(() => toast('No se pudo abrir el navegador', 'err')),
   'jvm-preset': (d) => {
     const ta = document.getElementById(d.target);
     if (ta) {
@@ -1788,7 +1801,8 @@ async function boot() {
   renderView();
   api('check_launcher_update', {}, true).then((u) => {
     if (u && u.available) {
-      showModal(`${sheetHead('Hay una nueva versión de Nebula Launcher')}<p>Versión ${esc(u.version)}</p><footer><button class="btn" data-act="close">Cerrar</button><button class="btn primary" data-act="open-url" data-url="${esc(u.url)}">Descargar</button></footer>`);
+      S.updateAv = u;
+      renderTop();
     }
   }).catch(() => {});
   api('versions', {}, true).then((v) => (S.versions = v)).catch(() => {});
