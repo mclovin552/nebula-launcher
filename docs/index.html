@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nebula Launcher — Descargar</title>
+<meta name="description" content="Nebula Launcher: lanzador de Minecraft Java de código abierto, ligero y bonito para Windows y Linux.">
+<style>
+  :root {
+    --bg: #0c1424; --bg2: #101b30; --surface: rgba(255,255,255,.06);
+    --text: #e8eefb; --muted: #8ea1c4; --line: rgba(120,150,220,.18);
+    --violet: #8b5cf6; --cyan: #22d3ee; --amber: #ffc857;
+    --aurora: linear-gradient(90deg, #8b5cf6, #22d3ee);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: radial-gradient(1200px 600px at 80% -10%, rgba(139,92,246,.22), transparent 60%),
+                radial-gradient(900px 500px at 10% 20%, rgba(34,211,238,.12), transparent 55%),
+                var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Cantarell", system-ui, sans-serif;
+    line-height: 1.55; min-height: 100vh;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(148,170,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,170,255,.03) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse at 70% 0%, black, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at 70% 0%, black, transparent 75%);
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; position: relative; }
+
+  nav { display: flex; align-items: center; gap: 16px; padding: 20px 0; }
+  .logo { display: flex; align-items: center; gap: 12px; font-weight: 700; text-decoration: none; color: var(--text); }
+  .logo .dot {
+    width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #8b5cf6, #22d3ee);
+    box-shadow: 0 6px 24px rgba(139,92,246,.45);
+    font-size: 20px;
+  }
+  nav .grow { flex: 1; }
+  .navlink { color: var(--muted); text-decoration: none; font-size: 15px; transition: color .15s; }
+  .navlink:hover { color: var(--text); }
+
+  header.hero { padding: 64px 0 40px; text-align: center; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid var(--line); background: var(--surface);
+    padding: 7px 14px; border-radius: 999px; font-size: 13px; color: var(--muted);
+    backdrop-filter: blur(10px); text-transform: uppercase; letter-spacing: .08em;
+  }
+  .chip b { color: var(--text); }
+  h1 {
+    font-size: clamp(38px, 7vw, 64px); line-height: 1.08; margin: 22px 0 14px;
+    letter-spacing: -.02em;
+  }
+  h1 .grad {
+    background: var(--aurora); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub { color: var(--muted); font-size: clamp(16px, 2.5vw, 19px); max-width: 640px; margin: 0 auto; }
+
+  .download { margin-top: 34px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text);
+    border: 1px solid var(--line); background: var(--surface); backdrop-filter: blur(10px);
+    padding: 14px 22px; border-radius: 14px; font-weight: 600; font-size: 15.5px;
+    transition: transform .16s ease, box-shadow .2s ease, border-color .2s;
+  }
+  .btn:hover { transform: translateY(-2px); border-color: rgba(139,92,246,.55); box-shadow: 0 10px 30px rgba(139,92,246,.25); }
+  .btn.primary {
+    background: linear-gradient(115deg, #8b5cf6, #7c5cf0, #22d3ee);
+    border: none; color: #fff; font-size: 17px; padding: 16px 28px;
+    box-shadow: 0 10px 34px rgba(124,92,240,.45);
+    position: relative; overflow: hidden;
+  }
+  .btn.primary::after {
+    content: ""; position: absolute; top: 0; left: -80%; width: 50%; height: 100%;
+    background: linear-gradient(105deg, transparent, rgba(255,255,255,.45), transparent);
+    transform: skewX(-20deg); transition: left .45s ease;
+  }
+  .btn.primary:hover::after { left: 130%; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .meta a { color: var(--cyan); text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+
+  .shot { margin-top: 48px; border-radius: 20px; overflow: hidden; border: 1px solid var(--line);
+    box-shadow: 0 30px 80px rgba(3,6,18,.55), 0 0 0 8px rgba(255,255,255,.02); }
+  .shot img { width: 100%; display: block; }
+
+  section { padding: 64px 0; }
+  h2 { font-size: clamp(26px, 4vw, 36px); letter-spacing: -.01em; margin-bottom: 8px; }
+  h2.underline { position: relative; display: inline-block; }
+  h2.underline::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -8px; height: 4px;
+    border-radius: 4px; background: var(--aurora);
+  }
+  .lead { color: var(--muted); margin-bottom: 30px; }
+
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .card {
+    background: linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.02));
+    border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 10px 30px rgba(3,6,18,.35);
+    transition: transform .18s ease, border-color .2s;
+    opacity: 0; transform: translateY(16px);
+  }
+  .card.in { animation: rise .45s ease forwards; }
+  @keyframes rise { to { opacity: 1; transform: translateY(0); } }
+  .card:hover { transform: translateY(-4px); border-color: rgba(139,92,246,.45); }
+  .card .ico {
+    width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
+    background: linear-gradient(135deg, rgba(139,92,246,.35), rgba(34,211,238,.25));
+    font-size: 21px; margin-bottom: 12px;
+  }
+  .card b { display: block; margin-bottom: 5px; }
+  .card p { color: var(--muted); font-size: 14.5px; }
+
+  .shots2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .shots2 img { width: 100%; border-radius: 16px; border: 1px solid var(--line); display: block;
+    box-shadow: 0 14px 40px rgba(3,6,18,.45); }
+
+  .faq { max-width: 760px; }
+  details {
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin-bottom: 12px;
+  }
+  details summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; align-items: center; gap: 10px; }
+  details summary::before { content: "▸"; color: var(--violet); transition: transform .2s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  details p { color: var(--muted); margin-top: 10px; font-size: 15px; }
+  a { color: var(--cyan); }
+
+  footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 28px 0 48px; color: var(--muted); font-size: 14px;
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  footer .heart { color: #ff7a7a; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="logo" href="#"><span class="dot">🌌</span> Nebula Launcher</a>
+    <span class="grow"></span>
+    <a class="navlink" href="#funciones">Funciones</a>
+    <a class="navlink" href="#capturas">Capturas</a>
+    <a class="navlink" href="https://github.com/mclovin552/nebula-launcher">GitHub</a>
+  </nav>
+
+  <header class="hero">
+    <span class="chip">✨ <b id="ver">Open source</b> · sin anuncios · sin malware</span>
+    <h1>El lanzador de Minecraft<br><span class="grad">como debería ser</span></h1>
+    <p class="sub">Ligero (~4 MB de instalador), rápido y de belleza cristalina. Instancias, Modrinth, skins, backups y más — gratis y de código abierto para Windows y Linux.</p>
+    <div class="download" id="dl">
+      <a class="btn primary" href="https://github.com/mclovin552/nebula-launcher/releases/latest" id="main-dl">⬇️ Descargar para <span id="os-name">tu sistema</span></a>
+      <a class="btn" href="https://github.com/mclovin552/nebula-launcher/releases/latest" id="dash-dl" hidden></a>
+    </div>
+    <p class="meta" id="ver-info">Consultando la última versión… · <a href="https://github.com/mclovin552/nebula-launcher/releases">todas las versiones</a></p>
+    <div class="shot"><img src="screenshot-home.png" alt="Nebula Launcher"></div>
+  </header>
+
+  <section id="funciones">
+    <h2 class="underline">Todo lo que necesitas</h2>
+    <p class="lead">Las funciones de los grandes lanzadores, sin la basura.</p>
+    <div class="features" id="feat">
+      <div class="card"><div class="ico">📦</div><b>Gestión de instancias</b><p>Vanilla, Fabric, Quilt, Forge y NeoForge. Memoria, Java y argumentos por instancia.</p></div>
+      <div class="card"><div class="ico">🧩</div><b>Modrinth integrado</b><p>Mods, modpacks, texturas y shaders con dependencias automáticas. Y un botón "Optimizar" que mete Sodium y amigos.</p></div>
+      <div class="card"><div class="ico">🧵</div><b>Skins y capas</b><p>Armario con vista 3D, cambio por cuenta oficial y skins sin conexión vía CustomSkinLoader.</p></div>
+      <div class="card"><div class="ico">💾</div><b>Backups automáticos</b><p>Copias de tus mundos cada pocos minutos mientras juegas. Se acabó perder tu casa por un crash.</p></div>
+      <div class="card"><div class="ico">🖥️</div><b>Servidores con ping real</b><p>MOTD, jugadores y latencia en vivo, más una lista de servidores populares.</p></div>
+      <div class="card"><div class="ico">🛡️</div><b>Serio de verdad</b><p>Verificación SHA-1 de archivos, límites de seguridad y licencia MIT. Nada de telemetría rara.</p></div>
+    </div>
+  </section>
+
+  <section id="capturas">
+    <h2 class="underline">Temas</h2>
+    <p class="lead">Conoce <b>Aurora</b>: vidrio, degradados y animaciones fluidas. Tema claro y oscuro incluidos.</p>
+    <div class="shots2">
+      <img src="screenshot-home.png" alt="Inicio con Aurora">
+      <img src="screenshot-news.png" alt="Novedades de Minecraft">
+    </div>
+  </section>
+
+  <section class="faq">
+    <h2 class="underline">Preguntas</h2>
+    <p class="lead">Lo que todo el mundo pregunta antes de instalar.</p>
+    <details open><summary>¿Es gratis? ¿De verdad de verdad?</summary><p>Sí. Código abierto con licencia MIT, sin anuncios, sin cuentas obligatorias, sin "versión premium".</p></details>
+    <details><summary>¿Necesito Minecraft comprado?</summary><p>Puedes jugar con cuenta Microsoft si lo has comprado (el launcher lo verifica), o crear un perfil offline para probar sin conexión.</p></details>
+    <details><summary>¿Es seguro?</summary><p>Sí: el código entero es visible en GitHub, los archivos del juego se verifican con SHA-1 contra los servidores de Mojang y nada se instala fuera de su carpeta de datos.</p></details>
+    <details><summary>¿Funciona en Windows y Linux?</summary><p>Sí: .msi y .exe para Windows; .AppImage, .deb y .rpm para Linux.</p></details>
+  </section>
+
+  <footer>
+    <span>Hecho con <span class="heart">♥</span> bajo la aurora · MIT License</span>
+    <span><a href="https://github.com/mclovin552/nebula-launcher">GitHub</a> · <a href="https://github.com/mclovin552/nebula-launcher/releases">Releases</a></span>
+  </footer>
+</div>
+
+<script>
+  const OS = (() => {
+    const ua = navigator.userAgent;
+    if (/Win/i.test(ua)) return 'windows';
+    if (/Linux/i.test(ua) && !/Android/i.test(ua)) return 'linux';
+    return 'otro';
+  })();
+
+  fetch('https://api.github.com/repos/mclovin552/nebula-launcher/releases/latest')
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(rel => {
+      const v = (rel.tag_name || '').replace(/^v/, '');
+      document.getElementById('ver').textContent = 'v' + v + ' es la última';
+      const guess = {
+        windows: 'Nebula.Launcher_' + v + '_x64-setup.exe',
+        linux: 'Nebula.Launcher_' + v + '_amd64.AppImage'
+      };
+      const base = 'https://github.com/mclovin552/nebula-launcher/releases/latest/download/';
+      let main = base + 'Nebula.Launcher_' + v + '.zip';
+      let dash = '';
+      const names = (rel.assets || []).map(a => a.name);
+      if (OS === 'windows') {
+        document.getElementById('os-name').textContent = 'Windows';
+        main = base + (names.find(n => /_x64-setup\.exe$/.test(n)) || '');
+        dash = base + (names.find(n => /_en-US\.msi$/.test(n)) || '.msi');
+      } else if (OS === 'linux') {
+        document.getElementById('os-name').textContent = 'Linux';
+        main = base + (names.find(n => /AppImage/.test(n)) || '');
+        dash = base + (names.find(n => /amd64\.deb$/.test(n)) || '');
+      } else {
+        main = 'https://github.com/mclovin552/nebula-launcher/releases/latest';
+      }
+      const mq = document.getElementById('main-dl');
+      if (main && main !== base) { mq.href = main; } else { mq.href = rel.html_url || mq.href; }
+      const q = document.getElementById('dash-dl');
+      if (dash && dash !== base) { q.href = dash; q.textContent = 'Descargar alternativa (otro formato)'; q.hidden = false; }
+      document.getElementById('ver-info').innerHTML =
+        'Versión ' + v + ' · Windows y Linux · <a href="' + (rel.html_url || '#') + '">ver notas del release</a>';
+      document.title = 'Nebula Launcher v' + v + ' — Descargar';
+    })
+    .catch(() => {
+      document.getElementById('ver-info').innerHTML =
+        'Descarga siempre en <a href="https://github.com/mclovin552/nebula-launcher/releases/latest">Releases</a>';
+    });
+
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); }));
+  document.querySelectorAll('.card').forEach((c, i) => { c.style.animationDelay = (i * 0.06) + 's'; io.observe(c); });
+</script>
+</body>
+</html>
