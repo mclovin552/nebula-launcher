@@ -59,7 +59,7 @@ button { cursor: pointer; border: 0; background: none; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 10px; border: 2px solid var(--bg); }
 
-#app { display: grid; grid-template-columns: 84px 1fr; height: 100%; }
+#app { display: grid; grid-template-columns: 84px 1fr; grid-template-rows: minmax(0, 1fr); height: 100%; }
 
 #rail {
   background: var(--bg-2);
@@ -69,6 +69,8 @@ button { cursor: pointer; border: 0; background: none; }
   align-items: center;
   gap: 6px;
   padding: 16px 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 .brand {
   width: 46px; height: 46px; border-radius: 12px; margin-bottom: 14px;
@@ -86,7 +88,7 @@ button { cursor: pointer; border: 0; background: none; }
 .rail-btn.active { background: var(--raised); color: var(--glow); }
 .rail-spacer { flex: 1; }
 
-#stage { display: flex; flex-direction: column; min-width: 0; height: 100%; }
+#stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; }
 #topbar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 28px; min-height: 66px;
@@ -279,7 +281,7 @@ textarea { resize: vertical; min-height: 70px; }
 .toast.ok { border-left-color: var(--ok); }
 @keyframes pop { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
 
-#modal { position: fixed; inset: 0; z-index: 70; background: rgba(5,9,18,.72); display: grid; place-items: center; padding: 24px; }
+#modal { position: fixed; inset: 0; z-index: 70; background: rgba(5,9,18,.72); display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); place-items: center; padding: 24px; overflow-y: auto; }
 #modal[hidden], #dock[hidden] { display: none; }
 .sheet {
   width: min(620px, 100%); max-height: 88vh; overflow-y: auto;
