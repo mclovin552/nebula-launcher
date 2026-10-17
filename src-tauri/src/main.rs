@@ -448,8 +448,8 @@ fn open_url(url: String) -> Result<(), String> {
         return Err("Solo se pueden abrir enlaces https".to_string());
     }
     if cfg!(windows) {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", &url])
+        std::process::Command::new("explorer")
+            .arg(&url)
             .spawn()
             .map_err(|e| format!("No se pudo abrir el navegador: {e}"))?;
     } else {
