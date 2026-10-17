@@ -4,6 +4,8 @@
 
 Lanzador de Minecraft Java **de código abierto** para Linux y Windows, hecho con **Tauri 2 (Rust)** y una interfaz web nativa sin Node. Ligero (~10 MB de instalador, RAM mínima), bonito y completo.
 
+🌐 **Página oficial de descargas:** [mclovin552.github.io/nebula-launcher](https://mclovin552.github.io/nebula-launcher/)
+
 [![Última versión](https://img.shields.io/github/v/release/mclovin552/nebula-launcher?label=versi%C3%B3n&color=violet)](https://github.com/mclovin552/nebula-launcher/releases/latest)
 [![Descargas](https://img.shields.io/github/downloads/mclovin552/nebula-launcher/total?color=success&label=descargas)](https://github.com/mclovin552/nebula-launcher/releases)
 [![Licencia](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
