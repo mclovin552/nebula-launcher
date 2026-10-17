@@ -337,11 +337,8 @@ pub async fn project_details(project_id: &str) -> Result<Value, String> {
     }))
 }
 
-pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateItem>, String> {
+async fn status_core(instance_id: &str) -> Result<(String, String, Vec<(String, String)>), String> {
     let inst = instances::get(instance_id)?;
-    if inst.loader == "vanilla" {
-        return Ok(Vec::new());
-    }
     let dir = instances::game_dir(instance_id).join("mods");
     let entries = tokio::task::spawn_blocking(move || -> Vec<(String, String)> {
         let mut out = Vec::new();
@@ -360,15 +357,23 @@ pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateItem>, String>
     })
     .await
     .ctx()?;
+    Ok((inst.loader.clone(), inst.mc_version.clone(), entries))
+}
+
+async fn version_map(
+    loader: &str,
+    mc_version: &str,
+    entries: &[(String, String)],
+) -> Result<Value, String> {
     if entries.is_empty() {
-        return Ok(Vec::new());
+        return Ok(Value::Object(Default::default()));
     }
     let hashes: Vec<String> = entries.iter().map(|e| e.1.clone()).collect();
     let body = json!({
         "hashes": hashes,
         "algorithm": "sha1",
-        "loaders": loader_list(&inst.loader),
-        "game_versions": [inst.mc_version]
+        "loaders": loader_list(loader),
+        "game_versions": [mc_version]
     });
     let resp = client()
         .post(format!("{API}/version_files/update"))
@@ -379,7 +384,15 @@ pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateItem>, String>
         .ctx()?
         .error_for_status()
         .ctx()?;
-    let map: Value = resp.json().await.ctx()?;
+    resp.json().await.ctx()
+}
+
+pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateItem>, String> {
+    let (loader, mc_version, entries) = status_core(instance_id).await?;
+    if loader == "vanilla" || entries.is_empty() {
+        return Ok(Vec::new());
+    }
+    let map = version_map(&loader, &mc_version, &entries).await?;
     let mut out = Vec::new();
     for (name, hash) in entries {
         let Some(v) = map.get(hash.as_str()) else {
@@ -411,6 +424,86 @@ pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateItem>, String>
         });
     }
     Ok(out)
+}
+
+#[derive(Serialize)]
+pub struct ModStatusItem {
+    pub file: String,
+    pub state: String,
+    pub new_version: String,
+    pub version_id: String,
+}
+
+#[derive(Serialize)]
+pub struct ModsStatus {
+    pub items: Vec<ModStatusItem>,
+    pub ok: usize,
+    pub updated: usize,
+    pub unknown: usize,
+}
+
+pub async fn mods_status(instance_id: &str) -> Result<ModsStatus, String> {
+    let (loader, mc_version, entries) = status_core(instance_id).await?;
+    if entries.is_empty() {
+        return Ok(ModsStatus {
+            items: Vec::new(),
+            ok: 0,
+            updated: 0,
+            unknown: 0,
+        });
+    }
+    let map = if loader == "vanilla" {
+        Value::Object(Default::default())
+    } else {
+        version_map(&loader, &mc_version, &entries).await?
+    };
+    let mut items = Vec::new();
+    let mut ok = 0usize;
+    let mut updated = 0usize;
+    let mut unknown = 0usize;
+    for (name, hash) in entries {
+        let Some(v) = map.get(hash.as_str()) else {
+            unknown += 1;
+            items.push(ModStatusItem {
+                file: name,
+                state: "unknown".into(),
+                new_version: String::new(),
+                version_id: String::new(),
+            });
+            continue;
+        };
+        let files = v.get("files").and_then(|f| f.as_array());
+        let new_hash = files
+            .and_then(|f| f.first())
+            .and_then(|f| f.get("hashes"))
+            .and_then(|h| h.get("sha1"))
+            .and_then(|s| s.as_str())
+            .unwrap_or("");
+        let has_new = !new_hash.is_empty() && !new_hash.eq_ignore_ascii_case(&hash);
+        if has_new {
+            updated += 1;
+            items.push(ModStatusItem {
+                file: name,
+                state: "update".into(),
+                new_version: text(v, "version_number"),
+                version_id: text(v, "id"),
+            });
+        } else {
+            ok += 1;
+            items.push(ModStatusItem {
+                file: name,
+                state: "ok".into(),
+                new_version: String::new(),
+                version_id: String::new(),
+            });
+        }
+    }
+    Ok(ModsStatus {
+        items,
+        ok,
+        updated,
+        unknown,
+    })
 }
 
 pub async fn apply_update(

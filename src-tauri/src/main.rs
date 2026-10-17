@@ -145,7 +145,8 @@ fn app_info() -> Value {
         "name": "Nebula Launcher",
         "version": env!("CARGO_PKG_VERSION"),
         "repo": "https://github.com/mclovin552/nebula-launcher",
-        "issues": "https://github.com/mclovin552/nebula-launcher/issues"
+        "issues": "https://github.com/mclovin552/nebula-launcher/issues",
+        "portable": paths::is_portable()
     })
 }
 
@@ -333,6 +334,70 @@ async fn offline_cape_apply(
     path: String,
 ) -> Result<(), String> {
     wardrobe::local_cape(app, &instance_id, &player, &path).await
+}
+
+#[tauri::command]
+async fn check_mod_status(id: String) -> Result<modrinth::ModsStatus, String> {
+    modrinth::mods_status(&id).await
+}
+
+#[tauri::command]
+async fn self_update(app: AppHandle) -> Result<String, String> {
+    if !cfg!(windows) {
+        return Err("La actualización con un clic funciona en Windows. En Linux, descarga el AppImage nuevo desde Releases.".to_string());
+    }
+    let repo = settings::load().update_repo;
+    let repo = repo.trim().to_string();
+    let repo = if repo.is_empty() {
+        "mclovin552/nebula-launcher".to_string()
+    } else {
+        repo
+    };
+    let v: Value = http::get_json(&format!(
+        "https://api.github.com/repos/{repo}/releases/latest"
+    ))
+    .await?;
+    let tag = v
+        .get("tag_name")
+        .and_then(|t| t.as_str())
+        .unwrap_or("")
+        .trim_start_matches('v')
+        .to_string();
+    if tag.is_empty() || tag == env!("CARGO_PKG_VERSION") {
+        return Err("Ya estás en la última versión".to_string());
+    }
+    let asset = v
+        .get("assets")
+        .and_then(|a| a.as_array())
+        .and_then(|a| {
+            a.iter().find(|x| {
+                x.get("name")
+                    .and_then(|n| n.as_str())
+                    .map(|n| n.ends_with("_x64-setup.exe"))
+                    .unwrap_or(false)
+            })
+        })
+        .ok_or("No hay instalador disponible todavía")?;
+    let url = asset
+        .get("browser_download_url")
+        .and_then(|u| u.as_str())
+        .ok_or("URL inválida")?;
+    let bytes = http::get_bytes(url).await?;
+    let tmp = std::env::temp_dir().join(format!("nebula-setup-{}.exe", env!("CARGO_PKG_VERSION")));
+    tokio::fs::write(&tmp, &bytes)
+        .await
+        .map_err(|e| e.to_string())?;
+    let mut cmd = std::process::Command::new(&tmp);
+    cmd.arg("/S");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd.spawn().map_err(|e| e.to_string())?;
+    app.exit(0);
+    Ok("Instalando la nueva versión…".to_string())
 }
 
 #[derive(Serialize)]
@@ -688,6 +753,8 @@ fn main() {
             import_files,
             crash_report,
             check_mod_updates,
+            check_mod_status,
+            self_update,
             apply_mod_update,
             export_modpack,
             import_modpack_file,

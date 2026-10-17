@@ -849,8 +849,8 @@ async function openContent(id, tab) {
     body = items.length ? items.map((it) => {
       const title = it.title || it.name.replace(/\.disabled$/, '');
       const sub = t === 'mods' && it.title ? `${it.version ? esc(it.version) + ' · ' : ''}${esc(it.name.replace(/\.disabled$/, ''))}` : it.is_dir ? 'Carpeta' : fmtSize(it.size);
-      return `<div class="item ${it.enabled ? '' : 'off'}">
-        ${t === 'mods' ? (it.icon ? `<img class="skin" src="${esc(it.icon)}" alt="">` : '<div class="skin" style="background:var(--raised)"></div>') : ''}
+      return `<div class="item ${it.enabled ? '' : 'off'}" data-modfile="${esc(it.name)}">
+        ${t === 'mods' ? `<span class="ms-dot" data-file="${esc(it.name)}"></span>${it.icon ? `<img class="skin" src="${esc(it.icon)}" alt="">` : '<div class="skin" style="background:var(--raised)"></div>'}` : ''}
         <div class="grow"><div class="ellipsis">${esc(title)}</div><span class="muted ellipsis" style="font-size:12.5px;display:block">${sub}${it.enabled ? '' : ' · desactivado'}</span></div>
         ${t !== 'saves' ? `<button class="btn small" data-act="ctoggle" data-name="${esc(it.name)}">${it.enabled ? 'Desactivar' : 'Activar'}</button>` : ''}
         <button class="icon-btn" aria-label="Eliminar" data-act="cremove" data-name="${esc(it.name)}">${ic('trash')}</button>
@@ -861,6 +861,25 @@ async function openContent(id, tab) {
   showModal(`${sheetHead(esc(inst ? inst.name : 'Contenido'))}
     <div class="row between wrap"><div class="tabs" style="margin:0">${tabs}</div><div class="row wrap">${toolbar}<button class="btn small" data-act="folder" data-id="${esc(id)}" data-sub="${t === 'servers' || t === 'backups' ? '' : t === 'screens' ? 'screenshots' : t}">${ic('folder')}Abrir carpeta</button></div></div>
     ${banner}<div class="list" style="margin-top:14px">${body}</div>${hint}`, true);
+  if (t === 'mods') {
+    api('check_mod_status', { id }, true).then((st) => {
+      if (!st || S.content.id !== id) return;
+      const byFile = new Map(st.items.map((i) => [i.file, i]));
+      document.querySelectorAll('#modal .ms-dot[data-file]').forEach((el) => {
+        const it = byFile.get(el.dataset.file);
+        if (!it) return;
+        el.className = `ms-dot ${it.state}`;
+        el.title = it.state === 'ok' ? 'Al día en Modrinth' : it.state === 'update' ? `Actualización disponible → ${it.new_version}` : 'No está en Modrinth (instalado a mano)';
+        if (it.state === 'update') el.innerHTML = '⬆';
+      });
+      const legend = document.createElement('p');
+      legend.className = 'muted';
+      legend.style.cssText = 'margin-top:10px;font-size:12.5px';
+      legend.innerHTML = `🔴🟡🟢 Semáforo: <b style="color:#4ade80">${st.ok} al día</b> · <b style="color:#facc15">${st.updated} con actualización</b> · <b>${st.unknown} ajenos a Modrinth</b>`;
+      const list = document.querySelector('.list');
+      if (list) list.appendChild(legend);
+    }).catch(() => {});
+  }
 }
 
 async function fetchServerStatuses(servers) {
@@ -1580,7 +1599,12 @@ const actions = {
     renderView();
   },
   'open-url': (d) => api('open_url', { url: d.url }).catch(() => {}),
-  'update-go': (d) => api('open_url', { url: d.url }).catch(() => toast('No se pudo abrir el navegador', 'err')),
+  'update-go': (d) => {
+    toast('Buscando actualización…', 'ok');
+    api('self_update').then((m) => toast(m, 'ok')).catch(async () => {
+      try { await api('open_url', { url: d.url }); } catch (_) { toast('No se pudo abrir el navegador', 'err'); }
+    });
+  },
   'jvm-preset': (d) => {
     const ta = document.getElementById(d.target);
     if (ta) {

@@ -52,6 +52,14 @@ chmod +x Nebula.Launcher_*_amd64.AppImage
 ./Nebula.Launcher_*_amd64.AppImage
 ```
 
+### Modo portátil
+
+Crea un archivo vacío llamado `portable.txt` junto al ejecutable (al lado del `.exe` o dentro de la carpeta del AppImage) y Nebula guardará **todo** (instancias, cuentas, ajustes, mundos) en la subcarpeta `nebula-data` en vez de la carpeta de sistema. Ideal para memorias USB.
+
+### Modo semáforo de mods
+
+En **Contenido → Mods**, cada mod tiene un punto de color: 🟢 al día, 🟡 con actualización disponible en Modrinth, ⚪ instalado a mano (no está en Modrinth). La verificación se hace en lote contra los servidores de Modrinth con SHA-1.
+
 ## 🛠️ Compilar desde el código
 
 Necesitas [Rust](https://rustup.rs) y las dependencias de Tauri 2:
