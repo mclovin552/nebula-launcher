@@ -1,6 +1,6 @@
 [package]
 name = "nebula-launcher"
-version = "1.2.0"
+version = "1.0.2"
 edition = "2021"
 description = "Lanzador moderno de Minecraft Java para Linux"
 

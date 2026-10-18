@@ -267,12 +267,20 @@ pub async fn run(
             let _ = tokio::fs::copy(&cur, game_dir.join("current_skin.png")).await;
             if let Ok(sb) = tokio::fs::read(&cur).await {
                 for sub in ["LocalSkin/skins", "CustomSkinLoader/LocalSkin/skins"] {
-                    if let Ok(parent) = std::fs::canonicalize(&game_dir).map(|g| g.join(sub)) {
+                    for parent in [
+                        game_dir.join(sub),
+                        std::fs::canonicalize(&game_dir)
+                            .map(|g| g.join(sub))
+                            .unwrap_or_else(|_| game_dir.join(sub)),
+                    ] {
                         let _ = tokio::fs::create_dir_all(&parent).await;
-                        let unused =
-                            tokio::fs::write(parent.join(format!("{}.png", account.name)), &sb)
-                                .await;
-                        let _ = unused;
+                        let _ = tokio::fs::write(parent.join(format!("{}.png", account.name)), &sb)
+                            .await;
+                        let lower = account.name.to_lowercase();
+                        if lower != account.name {
+                            let _ =
+                                tokio::fs::write(parent.join(format!("{lower}.png")), &sb).await;
+                        }
                     }
                 }
             }

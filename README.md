@@ -39,13 +39,15 @@ Lanzador de Minecraft Java **de código abierto** para **Windows, Linux y macOS*
 - **Modrinth integrado**: mods, modpacks (`.mrpack`), texturas y shaders, con resolución automática de dependencias, **semáforo de actualizaciones** y actualización de modpacks con un clic. **⚡ Optimizar** mete los mods de rendimiento compatibles (Sodium, Lithium, Embeddium, ModernFix…) de golpe.
 - **Verificar y reparar**: comprobación SHA-1 de los archivos del juego y re-descarga de dañados.
 - **Servidores**: ping real (MOTD, jugadores, latencia), lista de servidores populares y entrada rápida (quickPlay).
-- **Skins y capas**: armario con vista 3D, **galería online de skins**, cambio por API oficial y skins sin conexión vía CustomSkinLoader (aplicables a todas tus instancias con mods).
+- **Skins y capas**: armario con vista 3D, **galería online** con catálogo paginado (63 páginas, búsqueda real y respaldo por nick de Ely.by — sin cuenta extra), historial de "Skins usadas" para no perder ninguna, cambio por API oficial en cuentas premium y skins sin conexión vía CustomSkinLoader + feed local (aplicables a todas tus instancias con mods).
 - **Capturas de pantalla**: galería integrada con tus capturas del juego.
 - **Estadísticas**: tiempo de juego por instancia, favorita y totales.
 - **Backups automáticos** de mundos mientras juegas.
 - **Importación/Exportación**: instancias de Prism Launcher/MultiMC y modpacks de Modrinth; exporta como `.mrpack`.
 - **Cuentas**: Microsoft (login OAuth local, sin configurar nada) y cuentas sin conexión.
-- **Extras**: 6 temas + 4 idiomas (ES/EN/PT/FR), Discord Rich Presence, bandeja del sistema, consola integrada con diagnóstico de errores, sonidos, **historial de versiones**, modo portátil (`portable.txt`) y **auto-actualización con un clic** en Windows y macOS.
+- **Discord integrado**: muestra "Jugando a…" con tu instancia y versión usando la aplicación oficial de Nebula — sin configurar nada.
+- **Más seguridad al iniciar sesión**: el login de Microsoft usa OAuth con **PKCE** y verificación de estado (state), ochava contra robo de código.
+- **Extras**: 6 temas + 4 idiomas (ES/EN/PT/FR), bandeja del sistema, consola integrada con diagnóstico de errores, sonidos, **historial de versiones**, modo portátil (`portable.txt`) y **auto-actualización con un clic** en Windows y macOS.
 
 ## 📥 Instalación
 
@@ -79,8 +81,8 @@ Requiere Rust estable y, en Linux, `libwebkit2gtk-4.1-dev libappindicator3-dev l
 
 | Versión | Destacados |
 |---|---|
-| **1.1.0** | macOS universal + auto-actualización, 6 temas, efectos visuales, historial en la app, catálogo de modpacks, chips de Java |
-| **1.0.1** | Primera release pública: instancias completas, Modrinth, Auto-Java, skins online/offline, 5 temas, 4 idiomas, auditoría de seguridad |
+| **1.0.2** | Interfaz renovada (paleta Ember), Discord Rich Presence integrado, login Microsoft con PKCE + state, galería de skins corregida (paginación, borrar, Inicio/Atrás) y skins offline reforzadas en Windows |
+| **1.0.1** | Instancias, Modrinth, Auto-Java, modpacks en 1 clic, skins online/offline, 6 temas, 4 idiomas, auto-actualización, auditoría de seguridad |
 
 ## 📄 Licencia
 
