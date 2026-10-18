@@ -30,8 +30,37 @@ pub async fn req_json<T: DeserializeOwned>(
     url: &str,
 ) -> Result<T, String> {
     let bytes = req_raw(builder, url).await?;
-    serde_json::from_slice(&bytes)
-        .map_err(|e| format!("{url}: la respuesta no es JSON válido ({e})"))
+    serde_json::from_slice::<T>(&bytes).map_err(|e| {
+        if let Ok(v) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+            let desc = v
+                .get("description")
+                .or_else(|| v.get("error"))
+                .and_then(|x| x.as_str())
+                .map(|s| s.to_string())
+                .or_else(|| x_str(&v));
+            if let Some(d) = desc {
+                return format!("{url}: el server contestó: {d}");
+            }
+            return format!(
+                "{url}: JSON inesperado: {}",
+                fallback_snip(bytes.as_slice())
+            );
+        }
+        format!("{url}: la respuesta no es JSON válido ({e})")
+    })
+}
+
+fn x_str(v: &serde_json::Value) -> Option<String> {
+    if let Some(o) = v.as_object() {
+        for val in o.values() {
+            if let Some(s) = val.as_str() {
+                if !s.is_empty() && s.len() < 120 {
+                    return Some(s.trim().to_string());
+                }
+            }
+        }
+    }
+    None
 }
 
 pub async fn req_raw(builder: reqwest::RequestBuilder, url: &str) -> Result<Vec<u8>, String> {
