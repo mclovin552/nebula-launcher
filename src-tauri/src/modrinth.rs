@@ -523,16 +523,47 @@ fn host_allowed(url: &str) -> bool {
     .any(|p| url.starts_with(p))
 }
 
+pub async fn modpack_versions(project_id: &str) -> Result<Vec<Value>, String> {
+    let versions = fetch_versions(project_id, None, None).await?;
+    Ok(versions
+        .iter()
+        .take(60)
+        .map(|v| {
+            let mc = v
+                .get("game_versions")
+                .and_then(|g| g.as_array())
+                .and_then(|arr| arr.last())
+                .and_then(|x| x.as_str())
+                .unwrap_or("?")
+                .to_string();
+            let name = text(v, "version_number");
+            json!({
+                "id": text(v, "id"),
+                "name": name,
+                "mc": mc,
+                "date": text(v, "date_published").chars().take(10).collect::<String>(),
+                "kind": text(v, "version_type"),
+            })
+        })
+        .collect())
+}
+
 pub async fn install_modpack(
     app: AppHandle,
     project_id: String,
     title: String,
+    version_id: Option<String>,
     concurrency: usize,
 ) -> Result<instances::Instance, String> {
     http::reset_cancel();
     emit_progress(&app, "modpack", "Buscando versión del modpack", 0, 0);
-    let versions = fetch_versions(&project_id, None, None).await?;
-    let version = best(versions).ok_or("El modpack no tiene versiones")?;
+    let version = match version_id.filter(|s| crate::mojang::safe_id(s)) {
+        Some(vid) => version_by_id(&vid).await?,
+        None => {
+            let versions = fetch_versions(&project_id, None, None).await?;
+            best(versions).ok_or("El modpack no tiene versiones")?
+        }
+    };
     paths::ensure()?;
     let (job, _) = primary_job(&version, paths::cache())?;
     emit_progress(&app, "modpack", "Descargando modpack", 0, 1);

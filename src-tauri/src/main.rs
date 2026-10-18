@@ -739,9 +739,15 @@ async fn install_modpack(
     app: AppHandle,
     project_id: String,
     title: String,
+    version_id: Option<String>,
 ) -> Result<instances::Instance, String> {
     let concurrency = settings::load().concurrency;
-    modrinth::install_modpack(app, project_id, title, concurrency).await
+    modrinth::install_modpack(app, project_id, title, version_id, concurrency).await
+}
+
+#[tauri::command]
+async fn modpack_versions(project_id: String) -> Result<Vec<Value>, String> {
+    modrinth::modpack_versions(&project_id).await
 }
 
 #[tauri::command]
@@ -888,6 +894,7 @@ fn main() {
             search,
             install_project,
             install_modpack,
+            modpack_versions,
             patch_notes,
             optimize_instance,
             project_details,

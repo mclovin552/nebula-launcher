@@ -1860,10 +1860,23 @@ const actions = {
     el.disabled = true;
     try {
       if (kind === 'modpack') {
-        const inst = await api('install_modpack', { projectId: d.id, title: d.title });
-        await refreshInstances();
-        S.activeInstance = inst.id;
-        toast(`Modpack «${inst.name}» instalado como instancia`, 'ok');
+        el.disabled = false;
+        let vers = [];
+        try {
+          vers = await api('modpack_versions', { projectId: d.id });
+        } catch (_) {}
+        if (!vers.length) {
+          toast('El modpack no tiene versiones descargables', 'err');
+          return;
+        }
+        S.mp = { projectId: d.id, title: d.title, vid: vers[0].id };
+        showModal(`${sheetHead('Versión del modpack')}
+          <p class="muted" style="margin:2px 0 10px">Elige qué versión de «${esc(d.title)}» instalar. La más nueva está arriba.</p>
+          <div class="list" style="max-height:340px;overflow:auto">
+            ${vers.map((v) => `<label class="item" style="cursor:pointer"><div class="grow"><b>${esc(v.name)}</b><br><span class="muted" style="font-size:12.5px">${esc(v.date || '¿fecha?')} · ${esc(v.kind || '?')}</span></div><input type="radio" name="mpv" value="${esc(v.id)}" ${v.id === S.mp.vid ? 'checked' : ''}><span class="chip">MC ${esc(v.mc)}</span></label>`).join('')}
+          </div>
+          <button class="btn primary" data-act="minstall" style="margin-top:12px">Instalar esta versión</button>`);
+        el.disabled = false;
       } else {
         const target = $('#d-target') ? $('#d-target').value : '';
         if (!target) {
@@ -1881,6 +1894,26 @@ const actions = {
         updateDock();
       }
     }
+  },
+  mpick: (d) => {
+    if (S.mp) S.mp.vid = d.vid;
+    document.querySelectorAll('#modal input[name="mpv"]').forEach((r) => { r.checked = r.value === d.vid; });
+  },
+  minstall: async () => {
+    if (!S.mp) return;
+    const { projectId, title, vid } = S.mp;
+    closeModal();
+    toast('Instalando el modpack…');
+    try {
+      const inst = await api('install_modpack', { projectId, title, versionId: vid });
+      await refreshInstances();
+      S.activeInstance = inst.id;
+      renderView();
+      toast(`Modpack «${inst.name}» instalado como instancia`, 'ok');
+    } catch (_) {}
+    S.progress = null;
+    S.mp = null;
+    updateDock();
   },
   'add-offline': async () => {
     try {
