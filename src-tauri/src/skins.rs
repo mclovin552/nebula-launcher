@@ -22,19 +22,8 @@ pub struct SkindexItem {
 
 pub const UA_CRAFTY: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
-const CATEGORIES: [&str; 7] = [
-    "people", "games", "movies", "tv", "fantasy", "mobs", "other",
-];
-
 fn enc(s: &str) -> String {
     crate::util::url_param(s)
-}
-
-async fn fetch_page(url: &str) -> Result<String, String> {
-    let bytes = http::get_bytes(url)
-        .await
-        .map_err(|e| format!("No se pudo abrir el catálogo de skins: {e}"))?;
-    Ok(String::from_utf8_lossy(&bytes).to_string())
 }
 
 fn parse_cards(html: &str) -> Vec<SkindexItem> {
@@ -45,15 +34,33 @@ fn parse_cards(html: &str) -> Vec<SkindexItem> {
             .nth(1)
             .and_then(|h| h.split(&['?', '"']).next())
             .unwrap_or("");
+        let slug = if slug.is_empty() {
+            let mut cand: String = String::new();
+            for tok in block.split("<a href=\"/").skip(1) {
+                let c = tok.split(&['?', '"']).next().unwrap_or("");
+                if !c.is_empty()
+                    && !c.contains('/')
+                    && !c.contains("static")
+                    && !c.eq("search")
+                    && !c.eq("category")
+                {
+                    cand = c.to_string();
+                    break;
+                }
+            }
+            cand
+        } else {
+            slug.to_string()
+        };
+        if slug.is_empty() || slug.contains("category") {
+            continue;
+        }
         let title = block
             .split("alt=\"")
             .nth(1)
             .and_then(|t| t.split('"').next())
             .filter(|t| t.len() > 1)
             .unwrap_or("");
-        if slug.is_empty() || slug.contains("category") {
-            continue;
-        }
         let title = if title.is_empty() {
             slug.replace(['-', '_'], " ")
         } else {
@@ -69,18 +76,63 @@ fn parse_cards(html: &str) -> Vec<SkindexItem> {
     out
 }
 
+const CAT_PAGES: [(&str, i64); 7] = [
+    ("people", 25),
+    ("other", 13),
+    ("games", 7),
+    ("fantasy", 7),
+    ("mobs", 4),
+    ("movies", 4),
+    ("tv", 3),
+];
+
+fn browse_slot(p: usize) -> Option<(String, i64)> {
+    let mut idx = p as i64 - 1;
+    for (c, n) in CAT_PAGES {
+        if idx < n {
+            return Some((c.to_string(), idx + 1));
+        }
+        idx -= n;
+    }
+    None
+}
+
 pub async fn skindex_search(query: &str, page: i64) -> Result<Vec<SkindexItem>, String> {
-    let p = page.clamp(1, 50);
+    let p = page.clamp(1, 200);
     let url = if query.trim().is_empty() {
-        let cat = CATEGORIES[((p as usize).saturating_sub(1)) % CATEGORIES.len()];
-        format!("https://www.minecraftskins.net/category/{cat}/{p}")
+        match browse_slot(p as usize) {
+            Some((cat, sub)) => format!("https://www.minecraftskins.net/category/{cat}/{sub}"),
+            None => return Ok(Vec::new()),
+        }
     } else {
         format!(
             "https://www.minecraftskins.net/search/{}?page={p}",
             enc(query.trim())
         )
     };
-    Ok(parse_cards(&fetch_page(&url).await?))
+    let resp = http::client()
+        .get(&url)
+        .header("User-Agent", "Mozilla/5.0")
+        .send()
+        .await
+        .map_err(|e| format!("No se pudo abrir el catálogo de skins: {e}"))?;
+    if resp.status().as_u16() == 404 {
+        return Ok(Vec::new());
+    }
+    if !resp.status().is_success() {
+        return Err(format!(
+            "El catálogo de skins respondió HTTP {}",
+            resp.status()
+        ));
+    }
+    let html = resp
+        .text()
+        .await
+        .map_err(|_| "No se pudo leer el catálogo".to_string())?;
+    if !query.trim().is_empty() && p > 1 {
+        return Ok(Vec::new());
+    }
+    Ok(parse_cards(&html))
 }
 
 pub async fn download_skin(url_or_path: &str) -> Result<Vec<u8>, String> {
