@@ -468,6 +468,7 @@ function setView(v) {
   renderTop();
   renderView();
   if (v === 'discover') runSearch(true);
+  if (v === 'skins' && !(S.sgal && S.sgal.items.length)) skinGalLoad(true);
 }
 
 function renderView() {
@@ -765,7 +766,7 @@ function viewAccounts() {
 
 function viewSkins() {
   const acc = S.accounts.find((a) => a.id === S.selectedAccount) || S.accounts[0];
-  const g = S.sgal || (S.sgal = { q: '', page: 1, items: [] });
+  const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'populares', items: [] });
   const notif = acc
     ? `<div class="panel stack" style="margin-bottom:20px">
         <div class="row wrap" style="align-items:center;gap:16px">
@@ -805,18 +806,25 @@ function viewSkins() {
       <button class="btn primary" data-act="skin-search">${ic('search')}Buscar</button>
     </div>
   </div>
-  <div class="grid" id="skin-grid" style="grid-template-columns:repeat(auto-fill,minmax(165px,1fr))">${g.items.length ? cards : '<div class="empty"><p>Escribe para buscar o entra a explorar el catálogo.</p></div>'}</div>
-  <div class="row" style="margin-top:14px">${g.items.length ? `<button class="btn" data-act="skin-more">Cargar más</button><span class="muted" style="font-size:12px;margin-left:10px">Página ${g.page}</span>` : ''}</div>`;
+  <div class="row wrap" style="margin:0 0 14px">
+    <button class="btn small ${g.mode === 'populares' ? 'primary' : ''}" data-act="skin-mode" data-mode="populares">Más usadas del mundo</button>
+    <button class="btn small ${g.mode === 'top_viewed' ? 'primary' : ''}" data-act="skin-mode" data-mode="top_viewed">Más vistas</button>
+    <button class="btn small ${g.mode === 'newest' ? 'primary' : ''}" data-act="skin-mode" data-mode="newest">Nuevas hoy</button>
+    <button class="btn small ${g.mode === 'net' ? 'primary' : ''}" data-act="skin-mode" data-mode="net">Búsqueda por palabra</button>
+  </div>
+  <div class="grid" id="skin-grid" style="grid-template-columns:repeat(auto-fill,minmax(165px,1fr))">${g.items.length ? cards : `<div class="empty"><p>${g.mode === 'net' ? 'Escribe arriba y pulsa Buscar.' : 'Cargando el catálogo…'}</p></div>`}</div>
+  <div class="row" style="margin-top:14px">${g.items.length && g.mode === 'net' ? `<button class="btn" data-act="skin-more">Cargar más</button><span class="muted" style="font-size:12px;margin-left:10px">Página ${g.page}</span>` : ''}</div>`;
+
 }
 
 async function skinGalLoad(reset) {
-  const g = S.sgal || (S.sgal = { q: '', page: 1, items: [] });
+  const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'populares', items: [] });
   if (reset) {
     g.page = 1;
     g.items = [];
   }
   try {
-    const items = await api('skin_gallery', { query: g.q, page: g.page }, true);
+    const items = await api('skin_gallery', { query: g.q, mode: g.mode, page: g.page }, true);
     g.items = g.items.concat(items || []);
     g.page += 1;
     if (S.view === 'skins') renderView();
@@ -1501,11 +1509,20 @@ function onProgress(p) {
 
 const actions = {
   'skin-search': () => {
-    const g = S.sgal || (S.sgal = { q: '', page: 1, items: [] });
+    const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'populares', items: [] });
     g.q = $('#skin-q') ? $('#skin-q').value.trim() : '';
     skinGalLoad(true);
   },
   'skin-more': () => skinGalLoad(false),
+  'skin-mode': (el) => {
+    const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'populares', items: [] });
+    g.mode = el.dataset.mode || 'populares';
+    if (g.mode === 'net' && !g.q) {
+      const q = $('#skin-q');
+      g.q = q ? q.value.trim() : '';
+    }
+    skinGalLoad(true);
+  },
   'skin-pick-file': async () => {
     const files = await pickFiles([{ name: 'PNG', extensions: ['png'] }], false);
     if (!files.length) return;

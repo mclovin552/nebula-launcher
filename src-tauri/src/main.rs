@@ -483,8 +483,35 @@ struct UpdateInfo {
 }
 
 #[tauri::command]
-async fn skin_gallery(query: String, page: i64) -> Result<Vec<crate::skins::SkindexItem>, String> {
-    crate::skins::skindex_search(&query, page).await
+async fn skin_gallery(query: String, mode: String, page: i64) -> Result<Vec<Value>, String> {
+    if mode == "populares" || mode == "newest" || mode == "top_viewed" {
+        let items = crate::skins::crafty_list(&mode).await?;
+        return Ok(items
+            .into_iter()
+            .map(|it| {
+                json!({
+                    "title": it.title,
+                    "preview": format!("{}?width=170&height=250&x=-30&z=50", it.render),
+                    "full": format!("crafty:{}:{}", it.uuid, it.model),
+                    "model": it.model,
+                    "crafty": true,
+                })
+            })
+            .collect());
+    }
+    let items = crate::skins::skindex_search(&query, page).await?;
+    Ok(items
+        .into_iter()
+        .map(|it| {
+            json!({
+                "title": it.title,
+                "preview": it.preview,
+                "full": it.full,
+                "model": "classic",
+                "crafty": false,
+            })
+        })
+        .collect())
 }
 
 #[tauri::command]
@@ -506,14 +533,27 @@ async fn skin_profile(account_id: String) -> Result<Value, String> {
 #[tauri::command]
 async fn skin_apply(account_id: String, source: String) -> Result<String, String> {
     let acc = crate::accounts::resolve_for_launch(Some(account_id)).await?;
-    let bytes = crate::skins::download_skin(&source).await?;
+    let source2: String;
+    let model: String;
+    if let Some(trimmed) = source.strip_prefix("crafty:") {
+        let rest: Vec<&str> = trimmed.split(':').collect();
+        source2 = format!("crafty:{}", rest.first().unwrap_or(&""));
+        model = rest
+            .get(1)
+            .map(|m| m.to_string())
+            .unwrap_or_else(|| "classic".to_string());
+    } else {
+        source2 = source;
+        model = "classic".to_string();
+    }
+    let bytes = crate::skins::download_skin(&source2).await?;
     if !crate::skins::valid_png(&bytes) {
         return Err("Ese enlace no devuelve una skin PNG válida".to_string());
     }
     if acc.kind == "microsoft" {
         let entry =
             crate::wardrobe::add_skin_from_bytes(&bytes, format!("{}-skin", acc.name)).await?;
-        crate::wardrobe::apply_saved_skin(&acc.id, &entry.id, "classic").await?;
+        crate::wardrobe::apply_saved_skin(&acc.id, &entry.id, &model).await?;
         Ok("Skin subida a tu cuenta premium: entra al juego y la verás".to_string())
     } else {
         let dest = crate::skins::set_current_skin(&bytes).await?;
