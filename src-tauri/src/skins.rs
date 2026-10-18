@@ -614,3 +614,118 @@ pub async fn ely_skin(nick: &str) -> Option<(String, String)> {
     }
     Some((nick.to_string(), url))
 }
+
+const CRAFTY_COLORS: [&str; 12] = [
+    "red", "blue", "green", "purple", "orange", "pink", "yellow", "brown", "cyan", "black",
+    "white", "grey",
+];
+
+pub async fn crafty_grid(page: i64) -> Result<Vec<CraftyItem>, String> {
+    let p = page.clamp(1, 500) as usize;
+    let color = CRAFTY_COLORS[(p - 1) % CRAFTY_COLORS.len()];
+    let url = format!("https://crafty.gg/skins/color/{color}");
+    let resp = http::client()
+        .get(&url)
+        .header("User-Agent", UA_CRAFTY)
+        .header("Accept-Language", "en-US,en;q=0.9")
+        .send()
+        .await
+        .map_err(|e| format!("No hubo conexión con crafty.gg: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("crafty.gg respondió con HTTP {}", resp.status()));
+    }
+    let html = resp
+        .text()
+        .await
+        .map_err(|_| "No se pudo leer el catálogo".to_string())?;
+    let mut out: Vec<CraftyItem> = Vec::new();
+    let mut segments: Vec<(usize, String)> = Vec::new();
+    let mut pos = 0;
+    while let Some(i) = html[pos..].find("href=\"/skins/") {
+        let abs = pos + i;
+        let uuid_raw = html.get(abs + 13..abs + 49).unwrap_or("");
+        if uuid_raw.len() == 36 && uuid_raw.matches('-').count() == 4 {
+            segments.push((abs, uuid_raw.to_string()));
+        }
+        pos = abs + 50;
+    }
+    for (j, (abs, uuid)) in segments.iter().enumerate() {
+        let a = segments
+            .get(j.wrapping_sub(1))
+            .map(|(x, _)| *x + 50)
+            .unwrap_or(0);
+        let seg = &html[a..*abs];
+        let hash_start = match seg.find("render.crafty.gg/3d/full/") {
+            Some(k) => k + 25,
+            None => continue,
+        };
+        let hash = match seg.get(hash_start..hash_start + 64) {
+            Some(h) => h,
+            None => continue,
+        };
+        if !hash.chars().all(|c| c.is_ascii_hexdigit()) {
+            continue;
+        }
+        let alt = seg
+            .find("alt=\"")
+            .and_then(|k| {
+                let tail = seg.get(k + 5..)?;
+                let end = tail.find('"')?;
+                Some(tail[..end].to_string())
+            })
+            .unwrap_or_default();
+        let slim = alt.contains("Slim");
+        let clean: String = alt
+            .split(" — ")
+            .next()
+            .unwrap_or("Skin")
+            .replace(" Minecraft skin", "");
+        let mut cs = clean.trim_start().chars();
+        let title = match cs.next() {
+            Some(f) => f.to_uppercase().collect::<String>() + cs.as_str(),
+            None => "Skin".to_string(),
+        };
+        out.push(CraftyItem {
+            render: format!("https://render.crafty.gg/3d/full/{hash}"),
+            model: if slim { "slim" } else { "classic" }.to_string(),
+            title,
+            players: 0,
+            uuid: uuid.clone(),
+            hash: hash.to_string(),
+        });
+    }
+    Ok(out)
+}
+
+#[tokio::test]
+#[ignore]
+async fn crafty_grid_ok() {
+    let a = crafty_grid(1).await.unwrap();
+    println!(
+        "p1: {} skins, primera {:?}",
+        a.len(),
+        a.first().map(|i| (&i.title, &i.uuid))
+    );
+    assert!(!a.is_empty());
+    let b = crafty_grid(2).await.unwrap();
+    println!("p2: {} skins", b.len());
+    assert!(!b.is_empty());
+    let u1: Vec<&str> = a.iter().map(|i| i.uuid.as_str()).collect();
+    let nuevos = b.iter().filter(|i| !u1.contains(&i.uuid.as_str())).count();
+    println!("p2 nuevos: {nuevos}");
+    println!(
+        "p1 uuids: {:?}",
+        a.iter()
+            .take(8)
+            .map(|i| i.uuid[..8].to_string())
+            .collect::<Vec<_>>()
+    );
+    println!(
+        "p2 uuids: {:?}",
+        b.iter()
+            .take(8)
+            .map(|i| i.uuid[..8].to_string())
+            .collect::<Vec<_>>()
+    );
+    assert!(nuevos > 10);
+}

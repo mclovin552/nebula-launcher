@@ -484,8 +484,39 @@ struct UpdateInfo {
 
 #[tauri::command]
 async fn skin_gallery(query: String, mode: String, page: i64) -> Result<Vec<Value>, String> {
+    if mode == "ely" {
+        if query.trim().len() < 3 {
+            return Ok(vec![json!({
+                "title": "Escribe un nick de Ely.by arriba y pulsa Buscar",
+                "preview": "",
+                "full": "",
+                "model": "classic",
+                "crafty": false,
+            })]);
+        }
+        return match crate::skins::ely_skin(&query).await {
+            Some((nick, url)) => Ok(vec![json!({
+                "title": format!("{nick} — skin de Ely.by"),
+                "preview": url,
+                "full": url,
+                "model": "classic",
+                "crafty": false,
+            })]),
+            None => Ok(vec![json!({
+                "title": format!("El nick {} no tiene skin en Ely.by", query),
+                "preview": "",
+                "full": "",
+                "model": "classic",
+                "crafty": false,
+            })]),
+        };
+    }
     if mode == "populares" || mode == "newest" || mode == "top_viewed" {
-        let items = crate::skins::crafty_list(&mode).await?;
+        let items = if page <= 1 {
+            crate::skins::crafty_list(&mode).await?
+        } else {
+            crate::skins::crafty_grid(page).await?
+        };
         return Ok(items
             .into_iter()
             .map(|it| {

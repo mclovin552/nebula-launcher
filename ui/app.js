@@ -788,13 +788,14 @@ function viewSkins() {
     : '<div class="empty"><p>Añade o selecciona una cuenta en Cuentas para gestionar tu skin.</p></div>';
   const cards = (g.items || []).map((it) => `
     <div class="card skgal">
-      <img class="skgal-img" src="${esc(it.preview)}" alt="${esc(it.title)}" loading="lazy"
-        data-act="skin-zoom" data-full="${esc(it.full)}" data-title="${esc(it.title)}">
+      ${it.preview
+        ? `<img class="skgal-img" src="${esc(it.preview)}" alt="${esc(it.title)}" loading="lazy" data-act="skin-zoom" data-full="${esc(it.full)}" data-title="${esc(it.title)}">`
+        : '<div class="empty" style="height:120px;display:flex;align-items:center;justify-content:center"><span>—</span></div>'}
       <div class="stack" style="gap:6px;padding:8px 10px 10px">
         <b style="font-size:13px" class="ellipsis">${esc(it.title)}</b>
         <div class="row" style="gap:6px">
-          ${acc ? `<button class="btn small primary" data-act="skin-use" data-src="${esc(it.full)}" data-title="${esc(it.title)}">${acc.kind === 'microsoft' ? 'Subir' : 'Usar'}</button>` : ''}
-          <button class="icon-btn" aria-label="Guardar en armario" data-act="skin-save" data-src="${esc(it.full)}" data-title="${esc(it.title)}">${ic('down')}</button>
+          ${it.full ? `${acc ? `<button class="btn small primary" data-act="skin-use" data-src="${esc(it.full)}" data-title="${esc(it.title)}">${acc.kind === 'microsoft' ? 'Subir' : 'Usar'}</button>` : ''}
+          <button class="icon-btn" aria-label="Guardar en armario" data-act="skin-save" data-src="${esc(it.full)}" data-title="${esc(it.title)}">${ic('down')}</button>` : ''}
         </div>
       </div>
     </div>`).join('');
@@ -823,7 +824,7 @@ function viewSkins() {
   <div class="row between" style="margin:18px 0 10px">
     <h2>Galería de skins</h2>
     <div class="row" style="gap:8px">
-      <label class="field skin-search"><input type="search" id="skin-q" placeholder="Buscar en la galería (herobrine, anime, ninja…)" value="${esc(g.q)}"></label>
+      <label class="field skin-search"><input type="search" id="skin-q" placeholder="${g.mode === 'ely' ? 'Nick de Ely.by (ej: charlie)' : 'Buscar en la galería (herobrine, anime, ninja…)'}" value="${esc(g.q)}"></label>
       <button class="btn primary" data-act="skin-search">${ic('search')}Buscar</button>
     </div>
   </div>
@@ -832,9 +833,10 @@ function viewSkins() {
     <button class="btn small ${g.mode === 'top_viewed' ? 'primary' : ''}" data-act="skin-mode" data-mode="top_viewed">Más vistas</button>
     <button class="btn small ${g.mode === 'newest' ? 'primary' : ''}" data-act="skin-mode" data-mode="newest">Nuevas hoy</button>
     <button class="btn small ${g.mode === 'net' ? 'primary' : ''}" data-act="skin-mode" data-mode="net">Búsqueda por palabra</button>
+    <button class="btn small ${g.mode === 'ely' ? 'primary' : ''}" data-act="skin-mode" data-mode="ely">Ely.by (por nick)</button>
   </div>
   <div class="grid" id="skin-grid" style="grid-template-columns:repeat(auto-fill,minmax(165px,1fr))">${g.items.length ? cards : `<div class="empty"><p>${g.mode === 'net' ? 'Escribe arriba y pulsa Buscar.' : 'Cargando el catálogo…'}</p></div>`}</div>
-  <div class="row" style="margin-top:14px">${g.items.length && g.mode === 'net' ? `<button class="btn" data-act="skin-more">Cargar más</button><span class="muted" style="font-size:12px;margin-left:10px">Página ${g.page}</span>` : ''}</div>`;
+  <div class="row" style="margin-top:14px">${g.items.length && g.mode !== 'ely' ? `<button class="btn" data-act="skin-more">Cargar más</button><span class="muted" style="font-size:12px;margin-left:10px">Página ${g.page}</span>` : ''}</div>`;
 
 }
 
@@ -1564,8 +1566,10 @@ const actions = {
   'skin-search': () => {
     const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'net', items: [] });
     const q = $('#skin-q');
-    g.q = q ? q.value.trim() : '';
-    if (!g.q) { toast('Escribe qué skin buscar (por ejemplo: herobrine, ninja, gato)', 'err'); return; }
+    const t = q ? q.value.trim() : '';
+    if (!t) { toast(g.mode === 'ely' ? 'Escribe un nick de Ely.by' : 'Escribe qué skin buscar (por ejemplo: herobrine, ninja, gato)', 'err'); return; }
+    if (g.mode !== 'ely') g.mode = 'net';
+    g.q = t;
     skinGalLoad(true);
   },
   'skin-more': () => skinGalLoad(false),
