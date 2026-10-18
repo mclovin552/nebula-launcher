@@ -110,7 +110,7 @@ async fn fetch_versions(
         q.push(("loaders".to_string(), serde_json::to_string(&l).ctx()?));
     }
     let req = client()
-        .get(format!("{API}/project/{}", crate::util::url_param(project)))
+        .get(format!("{API}/project/{}", crate::util::url_param(project)) + "/version")
         .query(&q);
     http::req_json::<Vec<Value>>(req, "{API}/project").await
 }
