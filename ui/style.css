@@ -854,37 +854,7 @@ input:not([type="range"]), textarea, select { transition: border-color 0.15s, bo
 }
 
 
-.rig-wrap {
-  perspective: 1100px;
-  display: inline-block;
-  flex: none;
-}
-.rig {
-  position: relative;
-  display: block;
-  transform-style: preserve-3d;
-  animation: rigSpin 16s linear infinite;
-}
-.rig > i.p {
-  position: absolute;
-  display: block;
-  transform-style: preserve-3d;
-}
-.rig > i > i {
-  position: absolute;
-  left: 0;
-  top: 0;
-  display: block;
-  background-image: var(--tex);
-  image-rendering: pixelated;
-}
-@keyframes rigSpin {
-  from { transform: rotateX(-12deg) rotateY(0deg); }
-  to { transform: rotateX(-12deg) rotateY(360deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .rig { animation: none; transform: rotateX(-14deg) rotateY(28deg); }
-}
+
 
 h1, h2, h3 { text-wrap: balance; }
 
@@ -1254,4 +1224,41 @@ body::before {
   height: 216px;
   background-position: -360px -360px;
   background-size: 1152px 1152px;
+}
+
+.skin-render {
+  image-rendering: pixelated;
+  background: var(--raised);
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  flex: none;
+}
+.skgal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.skgal-img {
+  width: 100%;
+  aspect-ratio: 7 / 5;
+  object-fit: contain;
+  background: var(--raised);
+  cursor: zoom-in;
+  image-rendering: pixelated;
+}
+.skin-zoom-big {
+  image-rendering: pixelated;
+  background: var(--raised);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  max-width: 100%;
+}
+.skin-search input { min-width: 240px; }
+@keyframes skindrop {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.skgal { animation: skindrop .35s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .skgal { animation: none; }
 }

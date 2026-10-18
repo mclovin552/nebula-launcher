@@ -123,6 +123,11 @@ pub async fn add_skin(source: String, name: String) -> Result<SkinEntry, String>
     }
 }
 
+pub async fn add_skin_from_bytes(bytes: &[u8], name: String) -> Result<SkinEntry, String> {
+    let name = name.replace(' ', "_");
+    save_skin_bytes(&name, bytes.to_vec())
+}
+
 pub fn remove_skin(id: &str) -> Result<(), String> {
     let before = load_index();
     let after: Vec<SkinRecord> = before.iter().filter(|s| s.id != id).cloned().collect();
@@ -412,13 +417,7 @@ pub async fn lookup_skin(name: &str) -> Result<Value, String> {
     {
         return Err("Escribe un nick válido de Minecraft (3-20 letras, números o _ )".to_string());
     }
-    match mojang_lookup(name).await {
-        Ok(v) => Ok(v),
-        Err(e) if e.contains("No existe") || e.contains("404") => {
-            crate::ely::lookup(name).await.map_err(|_| e)
-        }
-        Err(e) => Err(e),
-    }
+    mojang_lookup(name).await
 }
 
 async fn mojang_lookup(name: &str) -> Result<Value, String> {

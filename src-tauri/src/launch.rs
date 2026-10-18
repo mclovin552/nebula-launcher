@@ -258,30 +258,28 @@ pub async fn run(
     let max_mem = inst.memory_mb.unwrap_or(cfg.max_memory);
     let min_mem = cfg.min_memory.min(max_mem);
     let is_ms = account.kind == "microsoft";
-    let is_ely = account.kind == "ely";
-    let agent_arg = if is_ely {
-        emit_progress(
-            &app,
-            "prepare",
-            "Preparando authlib-injector (Ely.by)",
-            0,
-            0,
-        );
-        match crate::ely::ensure_agent().await {
-            Ok((path, _ver)) => Some(format!(
-                "{}={}",
-                path.to_string_lossy(),
-                crate::ely::AGENT_ROOT
-            )),
-            Err(e) => {
-                return Err(format!(
-                    "No se pudo preparar authlib-injector (Ely.by): {e}"
-                ));
-            }
-        }
-    } else {
+    let agent_arg = if is_ms {
         None
+    } else {
+        let cur = crate::skins::current_skin_path();
+        if cur.exists() {
+            emit_progress(&app, "prepare", "Preparando tu skin para el juego", 0, 0);
+            let _ = tokio::fs::copy(&cur, game_dir.join("current_skin.png")).await;
+            let jar = crate::agent::ensure_agent()
+                .await
+                .map_err(|e| format!("No se pudo preparar authlib-injector: {e}"))?;
+            match crate::skins::spawn_server(account.name.clone(), cur, false).await {
+                Ok(port) => Some(format!(
+                    "{}=http://127.0.0.1:{port}/api/authlib-injector",
+                    jar.to_string_lossy()
+                )),
+                Err(e) => return Err(format!("No se pudo iniciar el feed local de skins: {e}")),
+            }
+        } else {
+            None
+        }
     };
+    let agent_arg: Option<String> = agent_arg;
 
     let mut vars: HashMap<&str, String> = HashMap::new();
     vars.insert("auth_player_name", account.name.clone());

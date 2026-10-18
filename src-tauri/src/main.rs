@@ -1,8 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod accounts;
+mod agent;
 mod discord;
-mod ely;
 mod http;
 mod instances;
 mod java;
@@ -15,6 +15,7 @@ mod pack;
 mod paths;
 mod serverping;
 mod settings;
+mod skins;
 mod state;
 mod util;
 mod wardrobe;
@@ -481,91 +482,46 @@ struct UpdateInfo {
     url: String,
 }
 
-#[derive(Serialize, Clone)]
-pub struct GalleryPage {
-    pub items: Vec<Value>,
-    pub cursor: Option<String>,
+#[tauri::command]
+async fn skin_gallery(query: String, page: i64) -> Result<Vec<crate::skins::SkindexItem>, String> {
+    crate::skins::skindex_search(&query, page).await
 }
 
 #[tauri::command]
-async fn skin_gallery(cursor: String) -> Result<GalleryPage, String> {
-    let mut url =
-        "https://api.mineskin.org/v2/skins?size=20&visibility=PUBLIC&imageType=SKIN".to_string();
-    if !cursor.trim().is_empty() {
-        url.push_str(&format!("&after={}", util::url_param(&cursor)));
+async fn skin_profile(account_id: String) -> Result<Value, String> {
+    let acc = crate::accounts::resolve_for_launch(Some(account_id)).await?;
+    let crafty = format!(
+        "https://render.crafty.gg/3d/full/{}",
+        crate::util::url_param(&acc.name)
+    );
+    let local = crate::skins::current_skin_path().exists();
+    Ok(json!({
+        "kind": acc.kind,
+        "name": acc.name,
+        "crafty": crafty,
+        "local_skin": local,
+    }))
+}
+
+#[tauri::command]
+async fn skin_apply(account_id: String, source: String) -> Result<String, String> {
+    let acc = crate::accounts::resolve_for_launch(Some(account_id)).await?;
+    let bytes = crate::skins::download_skin(&source).await?;
+    if !crate::skins::valid_png(&bytes) {
+        return Err("Ese enlace no devuelve una skin PNG válida".to_string());
     }
-    let v: Value = http::get_json(&url).await?;
-    let next = v
-        .get("pagination")
-        .and_then(|p| p.get("next"))
-        .and_then(|n| n.get("after"))
-        .and_then(|a| a.as_str())
-        .map(|s| s.to_string());
-    let uuids: Vec<String> = v
-        .get("skins")
-        .and_then(|s| s.as_array())
-        .map(|a| {
-            a.iter()
-                .filter_map(|x| {
-                    x.get("uuid")
-                        .and_then(|u| u.as_str())
-                        .map(|s| s.to_string())
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    use base64::Engine as _;
-    let mut out: Vec<Value> = Vec::new();
-    for uid in uuids {
-        let det: Value =
-            match http::get_json(&format!("https://api.mineskin.org/v2/skins/{uid}")).await {
-                Ok(d) => d,
-                Err(_) => continue,
-            };
-        let b64 = det
-            .get("skin")
-            .and_then(|s| s.get("texture"))
-            .and_then(|t| t.get("data"))
-            .and_then(|d| d.get("value"))
-            .and_then(|x| x.as_str())
-            .unwrap_or_default();
-        let decoded = base64::engine::general_purpose::STANDARD
-            .decode(b64.as_bytes())
-            .ok();
-        let tex: Value = decoded
-            .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
-            .unwrap_or(Value::Null);
-        let raw = tex
-            .get("textures")
-            .and_then(|t| t.get("SKIN"))
-            .and_then(|s| s.get("url"))
-            .and_then(|u| u.as_str())
-            .unwrap_or("")
-            .replacen("http://", "https://", 1);
-        if raw.starts_with("https://textures.minecraft.net/") {
-            let variant = det
-                .get("skin")
-                .and_then(|s| s.get("variant"))
-                .and_then(|x| x.as_str())
-                .unwrap_or("classic")
-                .to_string();
-            let short = det
-                .get("skin")
-                .and_then(|s| s.get("shortId"))
-                .and_then(|x| x.as_str())
-                .unwrap_or(&uid)
-                .to_string();
-            out.push(json!({
-                "url": raw,
-                "id": short,
-                "variant": variant,
-            }));
-        }
+    if acc.kind == "microsoft" {
+        let entry =
+            crate::wardrobe::add_skin_from_bytes(&bytes, format!("{}-skin", acc.name)).await?;
+        crate::wardrobe::apply_saved_skin(&acc.id, &entry.id, "classic").await?;
+        Ok("Skin subida a tu cuenta premium: entra al juego y la verás".to_string())
+    } else {
+        let dest = crate::skins::set_current_skin(&bytes).await?;
+        Ok(format!(
+            "Skin guardada como tu skin local ({}). Al pulsar Jugar se inyecta en el juego.",
+            dest.to_string_lossy()
+        ))
     }
-    Ok(GalleryPage {
-        items: out,
-        cursor: next,
-    })
 }
 
 #[tauri::command]
@@ -700,11 +656,6 @@ fn accounts_list() -> accounts::AccountList {
 #[tauri::command]
 fn add_offline(name: String) -> Result<accounts::AccountView, String> {
     accounts::add_offline(&name)
-}
-
-#[tauri::command]
-async fn add_ely(username: String, password: String) -> Result<accounts::AccountView, String> {
-    accounts::add_ely(&username, &password).await
 }
 
 #[tauri::command]
@@ -923,6 +874,8 @@ fn main() {
             install_java,
             java_scan,
             skin_gallery,
+            skin_profile,
+            skin_apply,
             app_info,
             reorder_instances,
             skin_lookup,
@@ -944,7 +897,6 @@ fn main() {
             open_url,
             accounts_list,
             add_offline,
-            add_ely,
             remove_account,
             select_account,
             ms_begin,
