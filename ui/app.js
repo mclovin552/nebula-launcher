@@ -834,8 +834,8 @@ function viewSkins() {
   </div>
   <div class="grid" id="skin-grid" style="grid-template-columns:repeat(auto-fill,minmax(165px,1fr))">${g.items.length ? cards : `<div class="empty"><p>${g.mode === 'net' ? 'Escribe arriba y pulsa Buscar.' : 'Cargando el catálogo…'}</p></div>`}</div>
   ${(g.mode === 'ely') ? '' : (() => {
-    const done = Math.max(1, g.done || g.page - 1);
-    const cur = Math.min(g.page, done + (g.done ? 0 : 1));
+    const done = Math.max(1, g.done || g.cur || (g.page - 1));
+    const cur = g.cur || done;
     const win = 3;
     const pages = [];
     const from = Math.max(1, cur - win);
@@ -858,6 +858,7 @@ async function skinGalLoad(reset) {
     g.page = 1;
     g.items = [];
     g.done = 0;
+    g.cur = 1;
     g.busy = false;
   }
   if (g.busy) return;
@@ -873,9 +874,9 @@ async function skinGalLoad(reset) {
       toast('Esa era la última página del catálogo');
       if (S.view === 'skins') renderView();
       return;
-    } else {
-      g.page = p + 1;
     }
+    g.cur = p;
+    g.page = p + 1;
     if (S.view === 'skins') renderView();
   } catch (e) {
     toast(String(e).replace(/^Error: /, 'No se pudo abrir la galería'), 'err');
@@ -1601,7 +1602,7 @@ const actions = {
     skinGalLoad(true);
   },
   'skin-more': () => skinGalLoad(false),
-  'hist-use': async (el) => {
+  'hist-use': async (d, el) => {
     const f = el.dataset.file || '';
     try {
       const msg = await api('skin_history_apply', { accountId: S.selectedAccount, file: f }, true);
@@ -1613,7 +1614,7 @@ const actions = {
       toast(String(e).replace(/^Error: /, ''), 'err');
     }
   },
-  'hist-del': async (el) => {
+  'hist-del': async (d, el) => {
     const f = el.dataset.file || '';
     try {
       await api('skin_history_remove', { file: f }, true);
@@ -1628,13 +1629,13 @@ const actions = {
     g.page = 1;
     skinGalLoad(false);
   },
-  'skin-page': (el) => {
+  'skin-page': (d, el) => {
     const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'net', items: [] });
     const p = parseInt(el.dataset.p, 10) || 1;
     g.page = p;
     skinGalLoad(false);
   },
-  'skin-mode': (el) => {
+  'skin-mode': (d, el) => {
     const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'net', items: [] });
     const wanted = el.dataset.mode || 'net';
     const q = $('#skin-q');
