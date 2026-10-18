@@ -553,6 +553,38 @@ pub async fn finish() -> Result<AccountView, String> {
     upsert(mc, rt, true)
 }
 
+pub async fn add_ely(username: &str, password: &str) -> Result<AccountView, String> {
+    let (prof, token) = crate::ely::login(username, password).await?;
+    let name = prof
+        .get("name")
+        .and_then(|n| n.as_str())
+        .unwrap_or(username.trim())
+        .to_string();
+    let uuid = prof
+        .get("id")
+        .and_then(|i| i.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let mut store = load_store();
+    store
+        .accounts
+        .retain(|a| !(a.kind == "ely" && a.name == name));
+    let acc = Account {
+        id: format!("ely-{}", now_millis()),
+        kind: "ely".to_string(),
+        uuid,
+        name,
+        access_token: token,
+        refresh_token: String::new(),
+        expires_at: 0,
+    };
+    let v = view(&acc);
+    store.selected = Some(acc.id.clone());
+    store.accounts.push(acc);
+    save_store(&store)?;
+    Ok(v)
+}
+
 pub async fn resolve_for_launch(requested: Option<String>) -> Result<Account, String> {
     let store = load_store();
     let id = requested
@@ -564,6 +596,35 @@ pub async fn resolve_for_launch(requested: Option<String>) -> Result<Account, St
         .find(|a| a.id == id)
         .cloned()
         .ok_or("La cuenta seleccionada no existe")?;
+    if acc.kind == "ely" {
+        if crate::ely::validate(&acc.access_token).await {
+            return Ok(acc);
+        }
+        match crate::ely::refresh(&acc.access_token).await {
+            Ok((token, prof)) => {
+                let mut store = load_store();
+                if let Some(a) = store.accounts.iter_mut().find(|a| a.id == acc.id) {
+                    a.access_token = token.clone();
+                }
+                save_store(&store)?;
+                let mut upd = acc;
+                upd.access_token = token;
+                if let (Some(id), Some(name)) = (
+                    prof.get("id").and_then(|x| x.as_str()),
+                    prof.get("name").and_then(|x| x.as_str()),
+                ) {
+                    upd.uuid = id.to_string();
+                    upd.name = name.to_string();
+                }
+                return Ok(upd);
+            }
+            Err(e) => {
+                return Err(format!(
+                    "Tu sesión de Ely.by caducó. Vuelve a iniciar sesión en Cuentas ({e})"
+                ))
+            }
+        }
+    }
     if acc.kind != "microsoft" || acc.expires_at > now_secs() + 120 {
         return Ok(acc);
     }

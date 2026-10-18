@@ -853,7 +853,41 @@ input:not([type="range"]), textarea, select { transition: border-color 0.15s, bo
   text-shadow: 0 1px 6px rgba(20, 20, 40, 0.4);
 }
 
+
+.rig-wrap {
+  perspective: 1100px;
+  display: inline-block;
+  flex: none;
+}
+.rig {
+  position: relative;
+  display: block;
+  transform-style: preserve-3d;
+  animation: rigSpin 16s linear infinite;
+}
+.rig > i.p {
+  position: absolute;
+  display: block;
+  transform-style: preserve-3d;
+}
+.rig > i > i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  background-image: var(--tex);
+  image-rendering: pixelated;
+}
+@keyframes rigSpin {
+  from { transform: rotateX(-12deg) rotateY(0deg); }
+  to { transform: rotateX(-12deg) rotateY(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rig { animation: none; transform: rotateX(-14deg) rotateY(28deg); }
+}
+
 h1, h2, h3 { text-wrap: balance; }
+
 p { text-wrap: pretty; }
 
 @media (prefers-reduced-motion: reduce) {

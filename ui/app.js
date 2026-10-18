@@ -740,7 +740,7 @@ function viewAccounts() {
   const rows = S.accounts.map((a) => `
     <div class="item">
       <img class="skin" src="${headUrl(a)}" alt="">
-      <div class="grow"><h3>${esc(a.name)}</h3><span class="muted">${a.kind === 'microsoft' ? 'Cuenta Microsoft' : 'Sin conexión'}</span></div>
+      <div class="grow"><h3>${esc(a.name)}</h3><span class="muted">${a.kind === 'microsoft' ? 'Cuenta Microsoft' : a.kind === 'ely' ? 'Ely.by · skins reales' : 'Sin conexión'}</span></div>
       ${a.kind === 'microsoft' ? `<button class="btn small" data-act="wardrobe" data-id="${esc(a.id)}">Skins y capas</button>` : `<button class="btn small" data-act="wardrobe" data-id="${esc(a.id)}">Skin local</button>`}
       ${a.id === S.selectedAccount ? '<span class="chip">En uso</span>' : `<button class="btn small" data-act="select-account" data-id="${esc(a.id)}">Usar</button>`}
       <button class="icon-btn" aria-label="Quitar cuenta" data-act="remove-account" data-id="${esc(a.id)}">${ic('trash')}</button>
@@ -756,6 +756,15 @@ function viewAccounts() {
         <h2>Sin conexión</h2>
         <p class="muted">Juega en modo individual o en servidores sin verificación con cualquier nombre.</p>
         <div class="row"><input type="text" id="offline-name" maxlength="16" placeholder="Nombre de jugador"><button class="btn" data-act="add-offline">Añadir</button></div>
+      </div>
+    </div>
+    <div class="panel stack" style="margin-top:16px">
+      <h2>Ely.by — skins de verdad sin premium</h2>
+      <p class="muted">Con una cuenta de ely.by (gratis) el juego carga tu skin real en cualquier versión, incluso vanilla y servidores offline. Regístrate en ely.by si no tienes cuenta, sube tu skin ahí, y entra aquí con tu usuario y contraseña.</p>
+      <div class="row wrap">
+        <input type="text" id="ely-user" placeholder="Usuario o email de Ely.by" style="min-width:200px">
+        <input type="password" id="ely-pass" placeholder="Contraseña (con 2FA: contrasena:codigo)" style="min-width:220px">
+        <button class="btn primary" data-act="add-ely">Sesión Ely.by</button>
       </div>
     </div>
     <div class="section"><h2 style="margin-bottom:14px">Tus cuentas</h2>${rows ? `<div class="list">${rows}</div>` : '<div class="empty"><p>Todavía no hay cuentas añadidas.</p></div>'}</div>`;
@@ -1168,6 +1177,37 @@ function skinCube(url) {
   return `<span class="skin-cube-wrap"><span class="skin-cube" style="--tex:url('${safe}')"><i class="f0"></i><i class="f1"></i><i class="f2"></i><i class="f3"></i><i class="f4"></i><i class="f5"></i></span></span>`;
 }
 
+function skinRig(url, p) {
+  const safe = String(url || '').replace(/[^A-Za-z0-9:/?%&=._-]/g, '');
+  const fn = (u, v, w, h) =>
+    `width:${w * p}px;height:${h * p}px;background-position:${-u * p}px ${-v * p}px;background-size:${64 * p}px ${64 * p}px;`;
+  const faces = (q, u) => {
+    const w = p * q[0], h = p * q[1], d = p * q[2];
+    let s = `<i style="width:${w}px;height:${h}px;transform:translateZ(${d / 2}px);${fn(u[0][0], u[0][1], u[0][2], u[0][3])}"></i>`;
+    s += `<i style="width:${w}px;height:${h}px;transform:rotateY(180deg) translateZ(${d / 2}px);${fn(u[1][0], u[1][1], u[1][2], u[1][3])}"></i>`;
+    s += `<i style="width:${d}px;height:${h}px;left:${(w - d) / 2}px;transform:rotateY(90deg) translateZ(${w / 2}px);${fn(u[2][0], u[2][1], u[2][2], u[2][3])}"></i>`;
+    s += `<i style="width:${d}px;height:${h}px;left:${(w - d) / 2}px;transform:rotateY(-90deg) translateZ(${w / 2}px);${fn(u[3][0], u[3][1], u[3][2], u[3][3])}"></i>`;
+    s += `<i style="width:${w}px;height:${d}px;top:${(h - d) / 2}px;transform:rotateX(90deg) translateZ(${h / 2}px);${fn(u[4][0], u[4][1], u[4][2], u[4][3])}"></i>`;
+    s += `<i style="width:${w}px;height:${d}px;top:${(h - d) / 2}px;transform:rotateX(-90deg) translateZ(${h / 2}px);${fn(u[5][0], u[5][1], u[5][2], u[5][3])}"></i>`;
+    return s;
+  };
+  const HEAD = [[8, 8, 8, 8], [24, 8, 8, 8], [0, 8, 8, 8], [16, 8, 8, 8], [8, 0, 8, 8], [16, 0, 8, 8]];
+  const BODY = [[20, 20, 8, 12], [32, 20, 8, 12], [16, 20, 4, 12], [28, 20, 4, 12], [20, 16, 8, 4], [28, 16, 8, 4]];
+  const ARM = [[44, 20, 4, 12], [52, 20, 4, 12], [40, 20, 4, 12], [48, 20, 4, 12], [44, 16, 4, 4], [48, 16, 4, 4]];
+  const LEG = [[4, 20, 4, 12], [12, 20, 4, 12], [0, 20, 4, 12], [8, 20, 4, 12], [4, 16, 4, 4], [8, 16, 4, 4]];
+  const part = (x, y, q, u) =>
+    `<i class="p" style="left:${x * p}px;top:${y * p}px;width:${q[0] * p}px;height:${q[1] * p}px">${faces(q, u)}</i>`;
+  const TORSO = [8, 12, 4], LIMB = [4, 12, 4], HEADQ = [8, 8, 8];
+  return `<span class="rig-wrap" style="--tex:url('${safe}')"><span class="rig" style="width:${16 * p}px;height:${32 * p}px">`
+    + part(4, 0, HEADQ, HEAD)
+    + part(4, 8, TORSO, BODY)
+    + part(0, 8, LIMB, ARM)
+    + part(12, 8, LIMB, ARM)
+    + part(4, 20, LIMB, LEG)
+    + part(8, 20, LIMB, LEG)
+    + '</span></span>';
+}
+
 async function openPopular() {
   const id = S.content.id;
   if (!id) return;
@@ -1203,23 +1243,26 @@ async function openPopular() {
 }
 
 async function wgLoad() {
-  const g = S.wGallery || (S.wGallery = { page: 1, items: [] });
+  const g = S.wGallery || (S.wGallery = { cursor: '', items: [] });
   try {
-    const items = await api('skin_gallery', { page: g.page }, true);
-    g.items = g.items.concat(items || []);
-    g.page += 1;
+    const res = await api('skin_gallery', { cursor: g.cursor }, true);
+    g.items = g.items.concat(res.items || []);
+    g.cursor = res.cursor || '';
     const box = document.getElementById('w-gallery');
-    if (!box) return;
-    box.innerHTML = g.items.map((it) => `
-      <div class="card" style="padding:10px;display:flex;flex-direction:column;align-items:center;gap:8px">
-        <div class="skin-face" style="--face:url('${esc(it.url.replace(/'/g, ''))}')"></div>
-        <button class="btn small primary" data-act="wg-add" data-url="${esc(it.url)}" data-name="Galería ${esc(String(it.id))}">Guardar</button>
-      </div>`).join('');
+    if (box) box.innerHTML = galleryHtml(g.items);
     const more = document.getElementById('w-more');
-    if (more) more.style.display = '';
+    if (more) more.style.display = res.cursor ? '' : 'none';
   } catch (_) {
     toast('No se pudo cargar la galería. Revisa tu conexión.', 'err');
   }
+}
+
+function galleryHtml(items) {
+  return items.map((it) => `
+    <div class="card" style="padding:10px;display:flex;flex-direction:column;align-items:center;gap:8px">
+      ${skinRig(it.url, 3)}
+      <button class="btn small primary" data-act="wg-add" data-url="${esc(it.url)}" data-name="Galería ${esc(String(it.id))}">Guardar</button>
+    </div>`).join('');
 }
 
 async function openWardrobe(id) {
@@ -1654,7 +1697,7 @@ const actions = {
     } catch (_) {}
   },
   'wg-open': async () => {
-    S.wGallery = { page: 1, items: [] };
+    S.wGallery = { cursor: '', items: [] };
     await wgLoad();
   },
   'wg-more': () => wgLoad(),
@@ -1676,11 +1719,11 @@ const actions = {
       const acc = S.accounts.find((a) => a.id === wardrobeAcc);
       const isMs = acc && acc.kind === 'microsoft';
       box.innerHTML = `<div class="panel row wrap" style="align-items:center;gap:18px">
-        <div class="skin-face xl" style="--face:url('${esc(r.skin)}')"></div>
+        ${skinRig(r.skin, 5)}
         <div class="skin-face xl body" style="--face:url('${esc(r.skin)}')"></div>
         <div class="stack grow" style="gap:8px;min-width:240px">
           <b style="font-size:17px">${esc(r.name)}</b>
-          <span class="muted" style="font-size:12.5px">Skin real de esa cuenta (profil oficial de Mojang) · modelo ${esc(r.model || 'classic')}${r.cape ? ' · con capa' : ''}</span>
+          <span class="muted" style="font-size:12.5px">Skin real del jugador · ${esc(r.source === 'ely_by' ? 'sacada de Ely.by' : 'perfil oficial de Mojang')} · modelo ${esc(r.model || 'classic')}${r.cape ? ' · con capa' : ''}</span>
           <div class="row wrap">
             <button class="btn small primary" data-act="w-res-prem" ${isMs ? '' : 'title="Solo cuentas Microsoft"'}>Poner en mi cuenta premium</button>
             <button class="btn small" data-act="w-res-save">Guardar en el armario</button>
@@ -1980,6 +2023,21 @@ const actions = {
       renderView();
     } catch (_) {}
   },
+  'add-ely': async () => {
+    const u = $('#ely-user'), p = $('#ely-pass');
+    if (!u || !p) return;
+    if (!u.value.trim() || !p.value.trim()) return toast('Escribe tu usuario y contraseña de Ely.by', 'err');
+    const btn = document.querySelector('[data-act="add-ely"]');
+    if (btn) btn.disabled = true;
+    try {
+      const acc = await api('add_ely', { username: u.value.trim(), password: p.value.trim() });
+      p.value = '';
+      await refreshAccounts();
+      renderView();
+      toast(`Sesión Ely.by lista para ${acc.name}. Tus skins cargarán dentro del juego.`, 'ok');
+    } catch (_) {}
+    if (btn) btn.disabled = false;
+  },
   'ms-login': () => startLogin(),
   'ms-cancel': () => {
     S.loginActive = false;
@@ -2175,6 +2233,7 @@ document.addEventListener('change', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('#modal').hidden) closeModal();
   if (e.key === 'Enter' && e.target.id === 'offline-name') actions['add-offline']();
+  if (e.key === 'Enter' && (e.target.id === 'ely-user' || e.target.id === 'ely-pass')) actions['add-ely']();
 });
 
 window.addEventListener('resize', () => {

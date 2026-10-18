@@ -2,6 +2,7 @@
 
 mod accounts;
 mod discord;
+mod ely;
 mod http;
 mod instances;
 mod java;
@@ -480,33 +481,91 @@ struct UpdateInfo {
     url: String,
 }
 
+#[derive(Serialize, Clone)]
+pub struct GalleryPage {
+    pub items: Vec<Value>,
+    pub cursor: Option<String>,
+}
+
 #[tauri::command]
-async fn skin_gallery(page: i64) -> Result<Vec<Value>, String> {
-    let url = format!(
-        "https://api.mineskin.org/get/list/?size=24&page={}&visibility=public",
-        page.clamp(1, 500)
-    );
+async fn skin_gallery(cursor: String) -> Result<GalleryPage, String> {
+    let mut url =
+        "https://api.mineskin.org/v2/skins?size=20&visibility=PUBLIC&imageType=SKIN".to_string();
+    if !cursor.trim().is_empty() {
+        url.push_str(&format!("&after={}", util::url_param(&cursor)));
+    }
     let v: Value = http::get_json(&url).await?;
-    let arr = v
+    let next = v
+        .get("pagination")
+        .and_then(|p| p.get("next"))
+        .and_then(|n| n.get("after"))
+        .and_then(|a| a.as_str())
+        .map(|s| s.to_string());
+    let uuids: Vec<String> = v
         .get("skins")
         .and_then(|s| s.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let out: Vec<Value> = arr
-        .into_iter()
-        .filter_map(|s| {
-            let raw = s.get("url").and_then(|u| u.as_str())?;
-            let url = raw.replacen("http://", "https://", 1);
-            if !url.starts_with("https://textures.minecraft.net/") {
-                return None;
-            }
-            Some(json!({
-                "url": url,
-                "id": s.get("id").and_then(|i| i.as_i64()).unwrap_or(0),
-            }))
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| {
+                    x.get("uuid")
+                        .and_then(|u| u.as_str())
+                        .map(|s| s.to_string())
+                })
+                .collect()
         })
-        .collect();
-    Ok(out)
+        .unwrap_or_default();
+    use base64::Engine as _;
+    let mut out: Vec<Value> = Vec::new();
+    for uid in uuids {
+        let det: Value =
+            match http::get_json(&format!("https://api.mineskin.org/v2/skins/{uid}")).await {
+                Ok(d) => d,
+                Err(_) => continue,
+            };
+        let b64 = det
+            .get("skin")
+            .and_then(|s| s.get("texture"))
+            .and_then(|t| t.get("data"))
+            .and_then(|d| d.get("value"))
+            .and_then(|x| x.as_str())
+            .unwrap_or_default();
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(b64.as_bytes())
+            .ok();
+        let tex: Value = decoded
+            .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+            .unwrap_or(Value::Null);
+        let raw = tex
+            .get("textures")
+            .and_then(|t| t.get("SKIN"))
+            .and_then(|s| s.get("url"))
+            .and_then(|u| u.as_str())
+            .unwrap_or("")
+            .replacen("http://", "https://", 1);
+        if raw.starts_with("https://textures.minecraft.net/") {
+            let variant = det
+                .get("skin")
+                .and_then(|s| s.get("variant"))
+                .and_then(|x| x.as_str())
+                .unwrap_or("classic")
+                .to_string();
+            let short = det
+                .get("skin")
+                .and_then(|s| s.get("shortId"))
+                .and_then(|x| x.as_str())
+                .unwrap_or(&uid)
+                .to_string();
+            out.push(json!({
+                "url": raw,
+                "id": short,
+                "variant": variant,
+            }));
+        }
+    }
+    Ok(GalleryPage {
+        items: out,
+        cursor: next,
+    })
 }
 
 #[tauri::command]
@@ -641,6 +700,11 @@ fn accounts_list() -> accounts::AccountList {
 #[tauri::command]
 fn add_offline(name: String) -> Result<accounts::AccountView, String> {
     accounts::add_offline(&name)
+}
+
+#[tauri::command]
+async fn add_ely(username: String, password: String) -> Result<accounts::AccountView, String> {
+    accounts::add_ely(&username, &password).await
 }
 
 #[tauri::command]
@@ -880,6 +944,7 @@ fn main() {
             open_url,
             accounts_list,
             add_offline,
+            add_ely,
             remove_account,
             select_account,
             ms_begin,

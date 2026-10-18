@@ -352,41 +352,16 @@ pub async fn local_cape(
     std::fs::write(dest.join(format!("{player}.png")), bytes).ctx()
 }
 
-pub async fn lookup_skin(name: &str) -> Result<Value, String> {
-    let name = name.trim();
-    if !(3..=20).contains(&name.len())
-        || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-    {
-        return Err("Escribe un nick válido de Minecraft (3-20 letras, números o _ )".to_string());
-    }
-    let up: Value = http::get_json(&format!(
-        "https://api.mojang.com/users/profiles/minecraft/{name}"
-    ))
-    .await?;
-    let id = up
-        .get("id")
-        .and_then(|i| i.as_str())
-        .ok_or("No existe un usuario con ese nick")?
-        .to_string();
-    let prof: Value = http::get_json(&format!(
-        "https://sessionserver.mojang.com/session/minecraft/profile/{id}"
-    ))
-    .await?;
-    let prop = prof
-        .get("properties")
-        .and_then(|p| p.as_array())
-        .and_then(|a| {
-            a.iter()
-                .find(|x| x.get("name").and_then(|n| n.as_str()) == Some("textures"))
-        });
-    let value = prop
-        .and_then(|p| p.get("value"))
-        .and_then(|v| v.as_str())
-        .ok_or("Ese jugador no tiene texturas de skin publicadas")?;
+pub fn parse_profile_textures(
+    prof: &Value,
+    value: &str,
+    fallback_name: &str,
+    source: &str,
+) -> Result<Value, String> {
     use base64::Engine as _;
     let decoded = base64::engine::general_purpose::STANDARD
         .decode(value.as_bytes())
-        .map_err(|e| format!("Textura de Mojang ilegible ({e})"))?;
+        .map_err(|e| format!("Textura del servidor ilegible ({e})"))?;
     let text_v = String::from_utf8_lossy(&decoded).to_string();
     let tex: Value = serde_json::from_str(&text_v).map_err(|e| e.to_string())?;
     let sk = tex.get("textures").and_then(|t| t.get("SKIN"));
@@ -419,13 +394,57 @@ pub async fn lookup_skin(name: &str) -> Result<Value, String> {
     let name2 = prof
         .get("name")
         .and_then(|n| n.as_str())
-        .unwrap_or(name)
+        .unwrap_or(fallback_name)
         .to_string();
     Ok(json!({
         "name": name2,
         "skin": url,
         "cape": cape,
         "model": model,
-        "source": "mojang"
+        "source": source,
     }))
+}
+
+pub async fn lookup_skin(name: &str) -> Result<Value, String> {
+    let name = name.trim();
+    if !(3..=20).contains(&name.len())
+        || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+    {
+        return Err("Escribe un nick válido de Minecraft (3-20 letras, números o _ )".to_string());
+    }
+    match mojang_lookup(name).await {
+        Ok(v) => Ok(v),
+        Err(e) if e.contains("No existe") || e.contains("404") => {
+            crate::ely::lookup(name).await.map_err(|_| e)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+async fn mojang_lookup(name: &str) -> Result<Value, String> {
+    let up: Value = http::get_json(&format!(
+        "https://api.mojang.com/users/profiles/minecraft/{name}"
+    ))
+    .await?;
+    let id = up
+        .get("id")
+        .and_then(|i| i.as_str())
+        .ok_or("No existe un usuario con ese nick")?
+        .to_string();
+    let prof: Value = http::get_json(&format!(
+        "https://sessionserver.mojang.com/session/minecraft/profile/{id}"
+    ))
+    .await?;
+    let prop = prof
+        .get("properties")
+        .and_then(|p| p.as_array())
+        .and_then(|a| {
+            a.iter()
+                .find(|x| x.get("name").and_then(|n| n.as_str()) == Some("textures"))
+        });
+    let value = prop
+        .and_then(|p| p.get("value"))
+        .and_then(|v| v.as_str())
+        .ok_or("Ese jugador no tiene texturas de skin publicadas")?;
+    parse_profile_textures(&prof, value, name, "mojang")
 }

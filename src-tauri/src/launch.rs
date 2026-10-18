@@ -258,6 +258,30 @@ pub async fn run(
     let max_mem = inst.memory_mb.unwrap_or(cfg.max_memory);
     let min_mem = cfg.min_memory.min(max_mem);
     let is_ms = account.kind == "microsoft";
+    let is_ely = account.kind == "ely";
+    let agent_arg = if is_ely {
+        emit_progress(
+            &app,
+            "prepare",
+            "Preparando authlib-injector (Ely.by)",
+            0,
+            0,
+        );
+        match crate::ely::ensure_agent().await {
+            Ok((path, _ver)) => Some(format!(
+                "{}={}",
+                path.to_string_lossy(),
+                crate::ely::AGENT_ROOT
+            )),
+            Err(e) => {
+                return Err(format!(
+                    "No se pudo preparar authlib-injector (Ely.by): {e}"
+                ));
+            }
+        }
+    } else {
+        None
+    };
 
     let mut vars: HashMap<&str, String> = HashMap::new();
     vars.insert("auth_player_name", account.name.clone());
@@ -318,7 +342,12 @@ pub async fn run(
         );
         vars.insert("quickPlayMultiplayer", server.clone().unwrap_or_default());
     }
-    let mut jvm: Vec<String> = vec![format!("-Xms{min_mem}M"), format!("-Xmx{max_mem}M")];
+    let mut jvm: Vec<String> = vec![];
+    if let Some(a) = &agent_arg {
+        jvm.push(format!("-javaagent:{a}"));
+    }
+    jvm.push(format!("-Xms{min_mem}M"));
+    jvm.push(format!("-Xmx{max_mem}M"));
     jvm.extend(split_args(&cfg.jvm_args));
     if let Some(extra) = &inst.jvm_args {
         jvm.extend(split_args(extra));
