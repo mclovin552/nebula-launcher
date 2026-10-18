@@ -842,11 +842,12 @@ function viewSkins() {
     const to = g.done ? done : cur + win > 50 ? 50 : cur + win;
     for (let i = from; i <= to; i++) pages.push(i);
     const btn = (p) => `<button class="btn small ${p === cur ? 'primary' : ''}" data-act="skin-page" data-p="${p}">${p}</button>`;
-    const prev = cur > 1 ? '<button class="btn small" data-act="skin-page" data-p="' + (cur - 1) + '">←</button>' : '';
+    const prev = cur > 1 ? `<button class="btn small" data-act="skin-page" data-p="${cur - 1}">←</button>` : '';
+    const first = cur > 1 ? '<button class="btn small" data-act="skin-first">Inicio</button>' : '';
     const next = !g.done ? '<button class="btn small" data-act="skin-more">Siguiente →</button>' : '';
     const ellPre = from > 1 ? '<span class="muted">…</span>' : '';
     const ellPost = to < done && g.done ? '<span class="muted">…</span>' + `<button class="btn small" data-act="skin-page" data-p="${done}">${done}</button>` : '';
-    return `<div class="row wrap" style="margin-top:14px;gap:6px;align-items:center">${prev} ${ellPre} ${pages.map(btn).join(' ')} ${ellPost} ${next} <span class="muted" style="font-size:12px;margin-left:8px">${g.done ? `Fin del catálogo · ${done} páginas` : `Página ${cur}`}</span></div>`;
+    return `<div class="row wrap" style="margin-top:14px;gap:6px;align-items:center">${first} ${prev} ${ellPre} ${pages.map(btn).join(' ')} ${ellPost} ${next} <span class="muted" style="font-size:12px;margin-left:8px">${g.done ? `Fin del catálogo · ${done} páginas` : `Página ${cur}`}</span></div>`;
   })()}`;
 
 }
@@ -869,6 +870,9 @@ async function skinGalLoad(reset) {
     if (!items.length) {
       g.done = Math.max(1, p - 1);
       g.page = g.done;
+      toast('Esa era la última página del catálogo');
+      if (S.view === 'skins') renderView();
+      return;
     } else {
       g.page = p + 1;
     }
@@ -1618,6 +1622,11 @@ const actions = {
     } catch (e) {
       toast(String(e).replace(/^Error: /, ''), 'err');
     }
+  },
+  'skin-first': () => {
+    const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'net', items: [] });
+    g.page = 1;
+    skinGalLoad(false);
   },
   'skin-page': (el) => {
     const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'net', items: [] });
