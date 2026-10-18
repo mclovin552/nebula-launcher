@@ -102,10 +102,21 @@ pub async fn req_raw(builder: reqwest::RequestBuilder, url: &str) -> Result<Vec<
                 {
                     return Ok(b.to_vec());
                 }
-                last = Some(format!(
-                    "{url}: respuesta inválida (HTTP {status}, {ctype}): {}",
-                    fallback_snip(b.as_ref())
-                ));
+                let server_msg = serde_json::from_slice::<serde_json::Value>(b.as_ref())
+                    .ok()
+                    .and_then(|v| {
+                        v.get("errorMessage")
+                            .or_else(|| v.get("error"))
+                            .and_then(|x| x.as_str())
+                            .map(|s| s.to_string())
+                    });
+                last = Some(match server_msg {
+                    Some(msg) => format!("{url}: el server respondió: {msg}"),
+                    None => format!(
+                        "{url}: respuesta inválida (HTTP {status}, {ctype}): {}",
+                        fallback_snip(b.as_ref())
+                    ),
+                });
             }
             Err(e) => {
                 last = Some(format!("{url}: {e}"));

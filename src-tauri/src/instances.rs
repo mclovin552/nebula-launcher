@@ -275,7 +275,7 @@ fn strip_data_url(data_url: &str) -> Vec<u8> {
     b64_decode(rest)
 }
 
-fn b64_decode(s: &str) -> Vec<u8> {
+pub fn b64_decode(s: &str) -> Vec<u8> {
     let val = |c: u8| -> u32 {
         match c {
             b'A'..=b'Z' => (c - b'A') as u32,

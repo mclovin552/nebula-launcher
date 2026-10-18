@@ -383,8 +383,12 @@ pub async fn lookup_skin(name: &str) -> Result<Value, String> {
         .and_then(|p| p.get("value"))
         .and_then(|v| v.as_str())
         .ok_or("Ese jugador no tiene texturas de skin publicadas")?;
-    let decoded = b64(value.as_bytes());
-    let tex: Value = serde_json::from_str(&decoded).map_err(|e| e.to_string())?;
+    use base64::Engine as _;
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(value.as_bytes())
+        .map_err(|e| format!("Textura de Mojang ilegible ({e})"))?;
+    let text_v = String::from_utf8_lossy(&decoded).to_string();
+    let tex: Value = serde_json::from_str(&text_v).map_err(|e| e.to_string())?;
     let sk = tex.get("textures").and_then(|t| t.get("SKIN"));
     let url = sk
         .and_then(|s| s.get("url"))
