@@ -511,25 +511,6 @@ async fn skin_gallery(query: String, mode: String, page: i64) -> Result<Vec<Valu
             })]),
         };
     }
-    if mode == "populares" || mode == "newest" || mode == "top_viewed" {
-        let items = if page <= 1 {
-            crate::skins::crafty_list(&mode).await?
-        } else {
-            crate::skins::crafty_grid(page).await?
-        };
-        return Ok(items
-            .into_iter()
-            .map(|it| {
-                json!({
-                    "title": it.title,
-                    "preview": format!("{}?width=170&height=250&x=-30&z=50", it.render),
-                    "full": format!("crafty:{}:{}", it.uuid, it.model),
-                    "model": it.model,
-                    "crafty": true,
-                })
-            })
-            .collect());
-    }
     let items = crate::skins::skindex_search(&query, page).await?;
     if !items.is_empty() {
         return Ok(items

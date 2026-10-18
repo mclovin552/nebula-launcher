@@ -767,7 +767,7 @@ function viewAccounts() {
 
 function viewSkins() {
   const acc = S.accounts.find((a) => a.id === S.selectedAccount) || S.accounts[0];
-  const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'populares', items: [] });
+  const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'net', items: [] });
   const notif = acc
     ? `<div class="panel stack" style="margin-bottom:20px">
         <div class="row wrap" style="align-items:center;gap:16px">
@@ -829,30 +829,54 @@ function viewSkins() {
     </div>
   </div>
   <div class="row wrap" style="margin:0 0 14px">
-    <button class="btn small ${g.mode === 'populares' ? 'primary' : ''}" data-act="skin-mode" data-mode="populares">Más usadas del mundo</button>
-    <button class="btn small ${g.mode === 'top_viewed' ? 'primary' : ''}" data-act="skin-mode" data-mode="top_viewed">Más vistas</button>
-    <button class="btn small ${g.mode === 'newest' ? 'primary' : ''}" data-act="skin-mode" data-mode="newest">Nuevas hoy</button>
-    <button class="btn small ${g.mode === 'net' ? 'primary' : ''}" data-act="skin-mode" data-mode="net">Búsqueda por palabra</button>
+    <button class="btn small ${g.mode === 'net' ? 'primary' : ''}" data-act="skin-mode" data-mode="net">Catálogo de skins</button>
     <button class="btn small ${g.mode === 'ely' ? 'primary' : ''}" data-act="skin-mode" data-mode="ely">Ely.by (por nick)</button>
   </div>
   <div class="grid" id="skin-grid" style="grid-template-columns:repeat(auto-fill,minmax(165px,1fr))">${g.items.length ? cards : `<div class="empty"><p>${g.mode === 'net' ? 'Escribe arriba y pulsa Buscar.' : 'Cargando el catálogo…'}</p></div>`}</div>
-  <div class="row" style="margin-top:14px">${g.items.length && g.mode !== 'ely' ? `<button class="btn" data-act="skin-more">Cargar más</button><span class="muted" style="font-size:12px;margin-left:10px">Página ${g.page}</span>` : ''}</div>`;
+  ${(g.mode === 'ely') ? '' : (() => {
+    const done = Math.max(1, g.done || g.page - 1);
+    const cur = Math.min(g.page, done + (g.done ? 0 : 1));
+    const win = 3;
+    const pages = [];
+    const from = Math.max(1, cur - win);
+    const to = g.done ? done : cur + win > 50 ? 50 : cur + win;
+    for (let i = from; i <= to; i++) pages.push(i);
+    const btn = (p) => `<button class="btn small ${p === cur ? 'primary' : ''}" data-act="skin-page" data-p="${p}">${p}</button>`;
+    const prev = cur > 1 ? '<button class="btn small" data-act="skin-page" data-p="' + (cur - 1) + '">←</button>' : '';
+    const next = !g.done ? '<button class="btn small" data-act="skin-more">Siguiente →</button>' : '';
+    const ellPre = from > 1 ? '<span class="muted">…</span>' : '';
+    const ellPost = to < done && g.done ? '<span class="muted">…</span>' + `<button class="btn small" data-act="skin-page" data-p="${done}">${done}</button>` : '';
+    return `<div class="row wrap" style="margin-top:14px;gap:6px;align-items:center">${prev} ${ellPre} ${pages.map(btn).join(' ')} ${ellPost} ${next} <span class="muted" style="font-size:12px;margin-left:8px">${g.done ? `Fin del catálogo · ${done} páginas` : `Página ${cur}`}</span></div>`;
+  })()}`;
 
 }
 
 async function skinGalLoad(reset) {
-  const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'populares', items: [] });
+  const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'net', items: [] });
   if (reset) {
     g.page = 1;
     g.items = [];
+    g.done = 0;
+    g.busy = false;
   }
+  if (g.busy) return;
+  g.busy = true;
   try {
-    const items = await api('skin_gallery', { query: g.q, mode: g.mode, page: g.page }, true);
-    g.items = g.items.concat(items || []);
-    g.page += 1;
+    const p = g.page;
+    const items = (await api('skin_gallery', { query: g.q, mode: g.mode, page: p }, true)) || [];
+    const have = new Set(g.items.map((x) => x.full + '|' + x.preview));
+    g.items = g.items.concat(items.filter((x) => !have.has(x.full + '|' + x.preview)));
+    if (!items.length) {
+      g.done = Math.max(1, p - 1);
+      g.page = g.done;
+    } else {
+      g.page = p + 1;
+    }
     if (S.view === 'skins') renderView();
   } catch (e) {
     toast(String(e).replace(/^Error: /, 'No se pudo abrir la galería'), 'err');
+  } finally {
+    g.busy = false;
   }
 }
 
@@ -1595,21 +1619,17 @@ const actions = {
       toast(String(e).replace(/^Error: /, ''), 'err');
     }
   },
+  'skin-page': (el) => {
+    const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'net', items: [] });
+    const p = parseInt(el.dataset.p, 10) || 1;
+    g.page = p;
+    skinGalLoad(false);
+  },
   'skin-mode': (el) => {
-    const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'populares', items: [] });
-    const wanted = el.dataset.mode || 'populares';
-    if (wanted === 'net' && !g.q) {
-      const q = $('#skin-q');
-      const t = q ? q.value.trim() : '';
-      if (!t) {
-        g.mode = wanted;
-        renderView();
-        if (q) q.focus();
-        toast('Escribe qué skin buscar y pulsa Buscar');
-        return;
-      }
-      g.q = t;
-    }
+    const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'net', items: [] });
+    const wanted = el.dataset.mode || 'net';
+    const q = $('#skin-q');
+    if (q && q.value.trim()) g.q = q.value.trim();
     g.mode = wanted;
     skinGalLoad(true);
   },
