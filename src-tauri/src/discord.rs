@@ -8,13 +8,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 static DONE: AtomicBool = AtomicBool::new(false);
 static RUNNING: AtomicBool = AtomicBool::new(false);
 
+const APP_ID: &str = "1561457440334282752";
+
 fn app_id() -> String {
-    let s = crate::settings::load().discord_app_id.trim().to_string();
-    if !s.is_empty() && s.chars().all(|c| c.is_ascii_digit()) {
-        s
-    } else {
-        String::new()
-    }
+    APP_ID.to_string()
 }
 
 enum Pipe {

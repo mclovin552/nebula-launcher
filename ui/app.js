@@ -973,8 +973,7 @@ function viewSettings() {
       </div>
       <div class="panel stack">
         <h2>Discord Rich Presence</h2>
-        <label class="field"><span>Discord Application ID (vacío = desactivado)</span><input type="text" id="s-discord" value="${esc(s.discord_app_id || '')}" placeholder="1234567890123456789"></label>
-        <p class="muted">Crea una aplicación en discord.com/developers/applications y pega aquí su Application ID para mostrar "Jugando a…" en tu perfil mientras juegas.</p>
+        <p class="muted">Discord muestra "Jugando a Minecraft…" en tu perfil mientras juegas, con la instancia y versión. Solo necesita tener Discord abierto; no hay nada que configurar.</p>
       </div>
       <div class="panel stack">
         <h2>Cuentas y servicios</h2>
@@ -2223,7 +2222,6 @@ const actions = {
       update_repo: $('#s-repo').value.trim(),
       close_to_tray: $('#s-tray') ? $('#s-tray').checked : true,
       auto_backup_minutes: Math.max(0, Math.min(240, parseInt(($('#s-backup') || {}).value, 10) || 0)),
-      discord_app_id: (($('#s-discord') || {}).value || '').trim().replace(/[^0-9]/g, '')
     };
     try {
       await api('settings_set', { settings: s });

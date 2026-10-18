@@ -1,6 +1,5 @@
 use crate::http::client;
 use crate::paths;
-use crate::settings::{self, DEFAULT_MS_CLIENT_ID};
 use crate::util::{now_millis, now_secs, Ctx};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -13,6 +12,48 @@ use std::time::Duration;
 
 const TOKEN_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
 const SCOPE: &str = "XboxLive.signin offline_access";
+const MS_CLIENT_ID: &str = "c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb";
+
+fn random_bytes(n: usize) -> Vec<u8> {
+    #[cfg(unix)]
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+        use std::io::Read as _;
+        let mut buf = vec![0u8; n];
+        if f.read_exact(&mut buf).is_ok() {
+            return buf;
+        }
+    }
+    let mut seed = (now_millis() as u64 ^ (std::process::id() as u64) << 21) | 1;
+    let mut out = Vec::with_capacity(n);
+    for _ in 0..n {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        out.push((seed & 0xff) as u8);
+    }
+    out
+}
+
+fn random_token() -> String {
+    let raw = random_bytes(48);
+    let mut out = String::with_capacity(64);
+    for b in raw {
+        out.push(std::char::from_digit((b & 0x0f) as u32, 16).unwrap_or('0'));
+        out.push(std::char::from_digit((b >> 4) as u32, 16).unwrap_or('0'));
+    }
+    out
+}
+
+fn pkce_challenge(verifier: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(verifier.as_bytes());
+    let mut out = String::with_capacity(44);
+    for b in digest {
+        out.push(std::char::from_digit((b >> 4) as u32, 16).unwrap_or('0'));
+        out.push(std::char::from_digit((b & 0x0f) as u32, 16).unwrap_or('0'));
+    }
+    out
+}
 
 #[derive(Serialize)]
 pub struct OAuthStart {
@@ -22,8 +63,11 @@ pub struct OAuthStart {
 struct OAuthFlow {
     client_id: String,
     redirect_uri: String,
+    code_verifier: String,
+    state: String,
     code: Arc<Mutex<Option<String>>>,
     error: Arc<Mutex<Option<String>>>,
+    state_seen: Arc<Mutex<Option<String>>>,
     done: Arc<AtomicBool>,
 }
 
@@ -69,6 +113,7 @@ type ServerHandles = (
     u16,
     Arc<Mutex<Option<String>>>,
     Arc<Mutex<Option<String>>>,
+    Arc<Mutex<Option<String>>>,
     Arc<AtomicBool>,
 );
 
@@ -80,10 +125,12 @@ fn start_local_server() -> Result<ServerHandles, String> {
 
     let code: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let state_seen: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let done: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 
     let c = code.clone();
     let e = error.clone();
+    let st = state_seen.clone();
     let d = done.clone();
     std::thread::spawn(move || {
         let _ = listener;
@@ -111,6 +158,9 @@ fn start_local_server() -> Result<ServerHandles, String> {
                                                     }
                                                     "error" => {
                                                         *e.lock().unwrap() = Some(url_decode(v));
+                                                    }
+                                                    "state" => {
+                                                        *st.lock().unwrap() = Some(url_decode(v));
                                                     }
                                                     _ => {}
                                                 }
@@ -142,7 +192,7 @@ fn start_local_server() -> Result<ServerHandles, String> {
         d.store(true, Ordering::SeqCst);
     });
 
-    Ok((port, code, error, done))
+    Ok((port, code, error, state_seen, done))
 }
 
 pub fn cancel_local_login() {
@@ -281,30 +331,32 @@ pub fn select(id: &str) -> Result<(), String> {
 }
 
 pub async fn begin() -> Result<OAuthStart, String> {
-    let settings = settings::load();
-    let saved = settings.ms_client_id.trim();
-    let client_id = if saved.is_empty() || saved.chars().all(|c| c == '0' || c == '-') {
-        DEFAULT_MS_CLIENT_ID.to_string()
-    } else {
-        saved.to_string()
-    };
+    let client_id = MS_CLIENT_ID;
 
-    let (port, code, error, done) = start_local_server()?;
+    let (port, code, error, state_seen, done) = start_local_server()?;
     let redirect_uri = format!("http://127.0.0.1:{}/callback", port);
+    let code_verifier = random_token();
+    let challenge = pkce_challenge(&code_verifier);
+    let state = random_token();
 
     *OAUTH.lock().unwrap() = Some(OAuthFlow {
-        client_id: client_id.clone(),
+        client_id: client_id.to_string(),
         redirect_uri: redirect_uri.clone(),
+        code_verifier,
+        state: state.clone(),
         code,
         error,
+        state_seen,
         done,
     });
 
     let authorize_url = format!(
-        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id={}&redirect_uri={}&response_type=code&scope={}",
-        url_encode(&client_id),
+        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id={}&redirect_uri={}&response_type=code&scope={}&prompt=select_account&code_challenge={}&code_challenge_method=S256&state={}",
+        url_encode(client_id),
         url_encode(&redirect_uri),
-        url_encode(SCOPE)
+        url_encode(SCOPE),
+        url_encode(&challenge),
+        url_encode(&state)
     );
 
     Ok(OAuthStart { authorize_url })
@@ -516,6 +568,16 @@ pub async fn finish() -> Result<AccountView, String> {
     }
     let code = code.ok_or("Tiempo de espera agotado. Vuelve a intentar iniciar sesión.")?;
 
+    let seen_state = flow
+        .state_seen
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or("La respuesta de Microsoft llegó sin verificación de estado (state)")?;
+    if seen_state != flow.state {
+        return Err("La respuesta de Microsoft no coincide con la solicitud (state inválido). Vuelve a intentarlo.".to_string());
+    }
+
     let resp = client()
         .post(TOKEN_URL)
         .form(&[
@@ -524,6 +586,7 @@ pub async fn finish() -> Result<AccountView, String> {
             ("code", code.as_str()),
             ("redirect_uri", redirect_uri.as_str()),
             ("scope", SCOPE),
+            ("code_verifier", flow.code_verifier.as_str()),
         ])
         .send()
         .await
@@ -567,17 +630,11 @@ pub async fn resolve_for_launch(requested: Option<String>) -> Result<Account, St
     if acc.kind != "microsoft" || acc.expires_at > now_secs() + 120 {
         return Ok(acc);
     }
-    let saved = settings::load().ms_client_id.trim().to_string();
-    let client_id = if saved.is_empty() || saved.chars().all(|c| c == '0' || c == '-') {
-        DEFAULT_MS_CLIENT_ID.to_string()
-    } else {
-        saved
-    };
     let resp = client()
         .post(TOKEN_URL)
         .form(&[
             ("grant_type", "refresh_token"),
-            ("client_id", client_id.trim()),
+            ("client_id", MS_CLIENT_ID),
             ("refresh_token", acc.refresh_token.as_str()),
             ("scope", SCOPE),
         ])
