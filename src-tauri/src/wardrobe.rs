@@ -352,7 +352,7 @@ pub async fn local_cape(
     std::fs::write(dest.join(format!("{player}.png")), bytes).ctx()
 }
 
-pub async fn lookup_skin(name: &str) -> Result<String, String> {
+pub async fn lookup_skin(name: &str) -> Result<Value, String> {
     let name = name.trim();
     if !(3..=20).contains(&name.len())
         || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
@@ -385,15 +385,43 @@ pub async fn lookup_skin(name: &str) -> Result<String, String> {
         .ok_or("Ese jugador no tiene texturas de skin publicadas")?;
     let decoded = b64(value.as_bytes());
     let tex: Value = serde_json::from_str(&decoded).map_err(|e| e.to_string())?;
-    let url = tex
-        .get("textures")
-        .and_then(|t| t.get("SKIN"))
+    let sk = tex.get("textures").and_then(|t| t.get("SKIN"));
+    let url = sk
         .and_then(|s| s.get("url"))
         .and_then(|u| u.as_str())
         .ok_or("Ese jugador no tiene skin publicada")?
+        .to_string()
+        .replace(
+            "http://textures.minecraft.net",
+            "https://textures.minecraft.net",
+        );
+    let cape = tex
+        .get("textures")
+        .and_then(|t| t.get("CAPE"))
+        .and_then(|s| s.get("url"))
+        .and_then(|u| u.as_str())
+        .map(|s| {
+            s.replace(
+                "http://textures.minecraft.net",
+                "https://textures.minecraft.net",
+            )
+        });
+    let model = sk
+        .and_then(|s| s.get("metadata"))
+        .and_then(|m| m.get("model"))
+        .and_then(|x| x.as_str())
+        .unwrap_or("classic")
         .to_string();
-    Ok(url.replace(
-        "http://textures.minecraft.net",
-        "https://textures.minecraft.net",
-    ))
+    let name2 = prof
+        .get("name")
+        .and_then(|n| n.as_str())
+        .unwrap_or(name)
+        .to_string();
+    Ok(json!({
+        "name": name2,
+        "skin": url,
+        "cape": cape,
+        "model": model,
+        "source": "mojang"
+    }))
 }

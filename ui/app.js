@@ -1212,7 +1212,7 @@ async function wgLoad() {
     if (!box) return;
     box.innerHTML = g.items.map((it) => `
       <div class="card" style="padding:10px;display:flex;flex-direction:column;align-items:center;gap:8px">
-        ${skinCube(it.url)}
+        <div class="skin-face" style="--face:url('${esc(it.url.replace(/'/g, ''))}')"></div>
         <button class="btn small primary" data-act="wg-add" data-url="${esc(it.url)}" data-name="Galería ${esc(String(it.id))}">Guardar</button>
       </div>`).join('');
     const more = document.getElementById('w-more');
@@ -1279,18 +1279,24 @@ async function openWardrobe(id) {
       <div class="row wrap">
         <label class="field" style="max-width:190px"><span>Modelo</span><select id="w-variant"><option value="classic">Clásica</option><option value="slim">Delgada</option></select></label>
         <label class="field" style="max-width:150px"><span>Nombre</span><input type="text" id="w-name" maxlength="40" placeholder="opcional"></label>
-        <label class="field" style="max-width:170px"><span>Buscar por nick</span><input type="text" id="w-nick" maxlength="20" placeholder="ejemplo: Notch"></label>
-        <button class="btn" data-act="w-nick">${ic('search')}Buscar skin</button>
-        <label class="field grow"><span>URL https de la skin</span><input type="text" id="w-url" placeholder="https://...png"></label>
-        <button class="btn" data-act="w-add-url">Añadir por URL</button>
-        <button class="btn" data-act="w-add-file">Elegir PNG</button>
+      </div>
+      <h3 style="margin-top:6px">🔍 Buscador de skins</h3>
+      <div class="panel stack" style="padding:16px">
+        <div class="row wrap">
+          <input type="text" id="w-nick" maxlength="20" placeholder="nick de cualquier jugador (ej. Notch)" class="field grow" style="max-width:none">
+          <button class="btn primary" data-act="w-nick">${ic('search')}Buscar</button>
+          <button class="btn" data-act="w-add-url" title="Añadir por URL https .png">Por URL</button>
+          <button class="btn" data-act="w-add-file">Elegir PNG</button>
+        </div>
+        <p class="muted" style="font-size:12.5px">Como NameMC: escribe el nick y mira la skin en real. Con cuenta Microsoft la aplicas a tu perfil oficial; con cuenta offline la usas en tus instancias con mods.</p>
+        <div id="w-res" class="stack"></div>
       </div>
       <div class="list">${saved}</div>
       <h3 style="margin-top:6px">🎨 Galería online</h3>
       <div class="panel stack" style="padding:16px">
         <p class="muted" style="font-size:13px">Skins públicas del catálogo de MineSkin. Guarda la que te guste en el armario y ponsela.</p>
         <div class="row wrap"><button class="btn small primary" data-act="wg-open">Mostrar galería</button><button class="btn small" data-act="wg-more" style="display:none" id="w-more">Cargar más</button></div>
-        <div class="grid" id="w-gallery" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr))"></div>
+        <div class="grid" id="w-gallery" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))"></div>
       </div>
       <h3 style="margin-top:6px">Capas de tu cuenta</h3>
       ${capesPart}
@@ -1661,15 +1667,67 @@ const actions = {
   'w-nick': async () => {
     const nick = $('#w-nick') ? $('#w-nick').value.trim() : '';
     if (!nick) return toast('Escribe un nick para buscar');
+    const box = document.getElementById('w-res');
+    if (box) box.innerHTML = '<div class="panel muted" style="padding:12px">Buscando a ' + esc(nick) + '…</div>';
     try {
-      const url = await api('skin_lookup', { name: nick });
-      await api('wardrobe_add', { source: url, name: nick });
-      toast(`Skin de ${nick} guardada en el armario`, 'ok');
-      openWardrobe(wardrobeAcc);
+      const r = await api('skin_lookup', { name: nick });
+      S.nickRes = r;
+      if (!box) return;
+      const acc = S.accounts.find((a) => a.id === wardrobeAcc);
+      const isMs = acc && acc.kind === 'microsoft';
+      box.innerHTML = `<div class="panel row wrap" style="align-items:center;gap:18px">
+        <div class="skin-face xl" style="--face:url('${esc(r.skin)}')"></div>
+        <div class="skin-face xl body" style="--face:url('${esc(r.skin)}')"></div>
+        <div class="stack grow" style="gap:8px;min-width:240px">
+          <b style="font-size:17px">${esc(r.name)}</b>
+          <span class="muted" style="font-size:12.5px">Skin real de esa cuenta (profil oficial de Mojang) · modelo ${esc(r.model || 'classic')}${r.cape ? ' · con capa' : ''}</span>
+          <div class="row wrap">
+            <button class="btn small primary" data-act="w-res-prem" ${isMs ? '' : 'title="Solo cuentas Microsoft"'}>Poner en mi cuenta premium</button>
+            <button class="btn small" data-act="w-res-save">Guardar en el armario</button>
+            <button class="btn small" data-act="w-res-off">Usar en mis instancias (offline)</button>
+          </div>
+        </div>
+      </div>`;
     } catch (e) {
+      if (box) box.innerHTML = '';
       toast(String(e).replace(/^Error: /, ''), 'err');
     }
   },
+  'w-res-save': async () => {
+    if (!S.nickRes) return toast('Busca primero un nick', 'err');
+    try {
+      await api('wardrobe_add', { source: S.nickRes.skin, name: S.nickRes.name });
+      toast('Skin guardada en el armario', 'ok');
+    } catch (_) {}
+  },
+  'w-res-prem': async () => {
+    if (!S.nickRes) return toast('Busca primero un nick', 'err');
+    const acc = S.accounts.find((a) => a.id === wardrobeAcc);
+    if (!acc || acc.kind !== 'microsoft') return toast('Para ponerla en tu cuenta premium, elige una cuenta Microsoft en Cuentas', 'err');
+    try {
+      const entry = await api('wardrobe_add', { source: S.nickRes.skin, name: S.nickRes.name });
+      const variant = $('#w-variant') ? $('#w-variant').value : (S.nickRes.model || 'classic');
+      await api('wardrobe_apply', { accountId: wardrobeAcc, skinId: entry.id, variant });
+      toast('Skin aplicada a tu cuenta oficial. Entra al juego en 1-2 min y la verás.', 'ok');
+    } catch (_) {}
+  },
+  'w-res-off': async () => {
+    if (!S.nickRes) return toast('Busca primero un nick', 'err');
+    try {
+      const entry = await api('wardrobe_add', { source: S.nickRes.skin, name: S.nickRes.name });
+      const acc = S.accounts.find((a) => a.id === wardrobeAcc);
+      const targets = S.instances.filter((i) => i.loader !== 'vanilla').map((i) => i.id);
+      if (!targets.length) return toast('Crea una instancia con Fabric/Forge/NeoForge/Quilt para verla en el juego', 'err');
+      let done = 0;
+      for (const t of targets) {
+        try {
+          await api('offline_skin_apply', { instanceId: t, player: acc ? acc.name : '', skinId: entry.id });
+          done += 1;
+        } catch (_) {}
+      }
+      toast(done ? `Skin de ${acc ? acc.name : 'el jugador'} colocada en ${done}/${targets.length} instancia(s)` : 'No se pudo aplicar en ninguna instancia', done ? 'ok' : 'err');
+    } catch (_) {}
+    },
   'w-add-file': async () => {
     const files = await pickFiles([{ name: 'PNG', extensions: ['png'] }], false);
     if (!files.length) return;

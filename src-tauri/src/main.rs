@@ -174,7 +174,7 @@ async fn reorder_instances(id: String, other: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn skin_lookup(name: String) -> Result<String, String> {
+async fn skin_lookup(name: String) -> Result<Value, String> {
     wardrobe::lookup_skin(&name).await
 }
 

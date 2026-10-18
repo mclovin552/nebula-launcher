@@ -1193,3 +1193,31 @@ body::before {
   body::before, .btn.primary.play[data-act="play"] { animation: none; }
   #stage > *, .grid > .card { animation: none; }
 }
+
+/* = SKIN SEARCH: previews grandes de skin real = */
+.skin-face {
+  width: 96px;
+  height: 96px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background-color: var(--raised);
+  background-image: var(--face);
+  background-size: 768px 768px;
+  background-position: -96px -96px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  flex: 0 0 auto;
+}
+.skin-face.xl {
+  width: 144px;
+  height: 144px;
+  border-radius: 12px;
+  background-size: 1152px 1152px;
+  background-position: -144px -144px;
+}
+.skin-face.xl.body {
+  width: 144px;
+  height: 216px;
+  background-position: -360px -360px;
+  background-size: 1152px 1152px;
+}
