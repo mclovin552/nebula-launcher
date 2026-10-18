@@ -8,7 +8,7 @@ Lanzador de Minecraft Java **de código abierto** para **Windows, Linux y macOS*
 
 [![Última versión](https://img.shields.io/github/v/release/mclovin552/nebula-launcher?label=versi%C3%B3n&color=violet)](https://github.com/mclovin552/nebula-launcher/releases/latest)
 [![Descargas](https://img.shields.io/github/downloads/mclovin552/nebula-launcher/total?color=success&label=descargas)](https://github.com/mclovin552/nebula-launcher/releases)
-[![Licencia](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
+[![Licencia](https://img.shields.io/badge/licencia-GPL--3.0-blue.svg)](LICENSE)
 [![Plataformas](https://img.shields.io/badge/plataformas-Windows%20%7C%20Linux%20%7C%20macOS-cyan.svg)](#instalaci%C3%B3n)
 
 > ✨ Seis temas, una **nebulosa animada** flotando detrás de la interfaz, botón Jugar con pulso y tarjetas que entran deslizándose. Jugar ya no se ve aburrido.
@@ -75,7 +75,7 @@ Requiere Rust estable y, en Linux, `libwebkit2gtk-4.1-dev libappindicator3-dev l
 - Rutas e identificadores de versiones **validados** (protección anti path-traversal en manifests, zips y descargas).
 - **SHA-1** en todos los archivos del juego y mods.
 - Límites de tamaño en descargas y tokens con **permisos 600** en archivos sensibles.
-- El código entero es visible y auditable: MIT.
+- El código entero es visible y auditable: GPL-3.0.
 
 ## 📜 Historial
 
@@ -86,4 +86,4 @@ Requiere Rust estable y, en Linux, `libwebkit2gtk-4.1-dev libappindicator3-dev l
 
 ## 📄 Licencia
 
-MIT — haz lo que quieras, menciona el proyecto original. Sin anuncios, sin telemetría, sin basura.
+**GPL-3.0** — el launcher y su código permanecen libres: puedes usarlo, estudiarlo, mejorarlo y redistribuirlo; cualquier versión derivada debe mantenerse también bajo GPL-3.0 con el código fuente disponible. Sin anuncios, sin telemetría, sin basura.

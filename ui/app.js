@@ -982,7 +982,7 @@ function viewSettings() {
       </div>
       <div class="panel stack">
         <h2>Acerca de</h2>
-        <p class="muted">Nebula Launcher — lanzador de Minecraft Java de código abierto (MIT).</p>
+        <p class="muted">Nebula Launcher — lanzador de Minecraft Java de código abierto (GPL-3.0).</p>
         <button class="btn small ghost" data-act="ver-history" style="align-self:flex-start">📜 Historial de versiones</button>
         <div id="ver-list" class="stack" hidden></div>
         <div class="row wrap"><button class="btn small" data-act="about">Acerca de Nebula</button></div>
@@ -2195,7 +2195,7 @@ const actions = {
       <div class="stack" style="text-align:center;padding:10px">
         <h2>☄ ${esc(info.name)}</h2>
         <p class="muted">Versión ${esc(info.version)}</p>
-        <p class="muted" style="max-width:420px;margin:0 auto">Lanzador de Minecraft Java de código abierto creado por mclovin552. Licencia MIT: puedes usarlo, copiarlo y mejorarlo libremente.</p>
+        <p class="muted" style="max-width:420px;margin:0 auto">Lanzador de Minecraft Java de código abierto creado por mclovin552. Licencia GPL-3.0: puedes usarlo, estudiarlo, mejorarlo y compartirlo libremente.</p>
       </div>
       <footer><button class="btn" data-act="open-url" data-url="${esc(info.issues)}">Reportar un fallo</button><button class="btn primary" data-act="open-url" data-url="${esc(info.repo)}">Ver en GitHub</button></footer>`);
   },
