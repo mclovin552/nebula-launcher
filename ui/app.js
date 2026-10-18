@@ -469,6 +469,7 @@ function setView(v) {
   renderView();
   if (v === 'discover') runSearch(true);
   if (v === 'skins' && !(S.sgal && S.sgal.items.length)) skinGalLoad(true);
+  if (v === 'skins') skinHistLoad();
 }
 
 function renderView() {
@@ -797,8 +798,28 @@ function viewSkins() {
         </div>
       </div>
     </div>`).join('');
+  const hist = S.shist || [];
+  const histHtml = hist.length
+    ? `<div class="panel stack" style="margin-top:18px">
+        <div class="row between" style="align-items:center">
+          <h2>Skins usadas</h2>
+          <span class="muted" style="font-size:12px">Guardamos una copia para que no las pierdas</span>
+        </div>
+        <div class="row wrap" style="gap:10px">${hist.map((h) => `
+          <div class="card skgal" style="min-width:110px">
+            <img class="skgal-img" style="height:110px;object-fit:contain;background:var(--surface-2)"
+              src="${esc(h.uri || '')}" alt="${esc(h.file)}" loading="lazy">
+            <div class="row" style="gap:6px;padding:8px 10px 10px">
+              ${acc ? `<button class="btn small primary" data-act="hist-use" data-file="${esc(h.file)}">Usar</button>` : ''}
+              <button class="icon-btn" aria-label="Borrar del historial" data-act="hist-del" data-file="${esc(h.file)}">${ic('x')}</button>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`
+    : '';
   return `<h1 style="margin:6px 0 4px">Skins</h1>
   ${notif}
+  ${histHtml}
   <div class="row between" style="margin:18px 0 10px">
     <h2>Galería de skins</h2>
     <div class="row" style="gap:8px">
@@ -831,6 +852,38 @@ async function skinGalLoad(reset) {
   } catch (e) {
     toast(String(e).replace(/^Error: /, 'No se pudo abrir la galería'), 'err');
   }
+}
+
+async function skinHistLoad() {
+  if (S.shist === undefined) S.shist = null;
+  if (S.shist && S.shist.length) {
+    if (!S.shist[0].uri) S.shist = await loadHistUris(S.shist);
+    if (S.view === 'skins') renderView();
+    return;
+  }
+  try {
+    const items = await api('skin_history', {}, true);
+    S.shist = [];
+    for (const it of items || []) {
+      try {
+        const uri = await api('skin_preview', { file: it.file }, true);
+        S.shist.push({ file: it.file, uri });
+      } catch (_) {}
+    }
+    if (S.view === 'skins') renderView();
+  } catch (_) {
+    S.shist = [];
+  }
+}
+
+async function loadHistUris(items) {
+  const out = [];
+  for (const it of items) {
+    let uri = it.uri;
+    try { uri = uri || await api('skin_preview', { file: it.file }, true); } catch (_) {}
+    out.push({ file: it.file, uri: uri || '' });
+  }
+  return out;
 }
 
 function viewConsole() {
@@ -1509,18 +1562,51 @@ function onProgress(p) {
 
 const actions = {
   'skin-search': () => {
-    const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'populares', items: [] });
-    g.q = $('#skin-q') ? $('#skin-q').value.trim() : '';
+    const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'net', items: [] });
+    const q = $('#skin-q');
+    g.q = q ? q.value.trim() : '';
+    if (!g.q) { toast('Escribe qué skin buscar (por ejemplo: herobrine, ninja, gato)', 'err'); return; }
     skinGalLoad(true);
   },
   'skin-more': () => skinGalLoad(false),
+  'hist-use': async (el) => {
+    const f = el.dataset.file || '';
+    try {
+      const msg = await api('skin_history_apply', { accountId: S.selectedAccount, file: f }, true);
+      toast(String(msg), 'ok');
+      S.skinHasLocal = true;
+      if (!S.sgal) S.sgal = { q: '', page: 1, mode: 'populares', items: [] };
+      renderView();
+    } catch (e) {
+      toast(String(e).replace(/^Error: /, ''), 'err');
+    }
+  },
+  'hist-del': async (el) => {
+    const f = el.dataset.file || '';
+    try {
+      await api('skin_history_remove', { file: f }, true);
+      S.shist = (S.shist || []).filter((h) => h.file !== f);
+      if (S.view === 'skins') renderView();
+    } catch (e) {
+      toast(String(e).replace(/^Error: /, ''), 'err');
+    }
+  },
   'skin-mode': (el) => {
     const g = S.sgal || (S.sgal = { q: '', page: 1, mode: 'populares', items: [] });
-    g.mode = el.dataset.mode || 'populares';
-    if (g.mode === 'net' && !g.q) {
+    const wanted = el.dataset.mode || 'populares';
+    if (wanted === 'net' && !g.q) {
       const q = $('#skin-q');
-      g.q = q ? q.value.trim() : '';
+      const t = q ? q.value.trim() : '';
+      if (!t) {
+        g.mode = wanted;
+        renderView();
+        if (q) q.focus();
+        toast('Escribe qué skin buscar y pulsa Buscar');
+        return;
+      }
+      g.q = t;
     }
+    g.mode = wanted;
     skinGalLoad(true);
   },
   'skin-pick-file': async () => {

@@ -265,6 +265,17 @@ pub async fn run(
         if cur.exists() {
             emit_progress(&app, "prepare", "Preparando tu skin para el juego", 0, 0);
             let _ = tokio::fs::copy(&cur, game_dir.join("current_skin.png")).await;
+            if let Ok(sb) = tokio::fs::read(&cur).await {
+                for sub in ["LocalSkin/skins", "CustomSkinLoader/LocalSkin/skins"] {
+                    if let Ok(parent) = std::fs::canonicalize(&game_dir).map(|g| g.join(sub)) {
+                        let _ = tokio::fs::create_dir_all(&parent).await;
+                        let unused =
+                            tokio::fs::write(parent.join(format!("{}.png", account.name)), &sb)
+                                .await;
+                        let _ = unused;
+                    }
+                }
+            }
             let jar = crate::agent::ensure_agent()
                 .await
                 .map_err(|e| format!("No se pudo preparar authlib-injector: {e}"))?;

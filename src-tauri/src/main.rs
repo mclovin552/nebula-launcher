@@ -515,6 +515,62 @@ async fn skin_gallery(query: String, mode: String, page: i64) -> Result<Vec<Valu
 }
 
 #[tauri::command]
+async fn skin_preview(file: String) -> Result<String, String> {
+    if file.contains("..") || file.contains('/') {
+        return Err("Archivo no válido".to_string());
+    }
+    let path = crate::skins::skinroot().join("historia").join(&file);
+    if !path.exists() {
+        return Err("Esa skin no existe".to_string());
+    }
+    let raw = tokio::fs::read(&path)
+        .await
+        .map_err(|e| format!("No se pudo leer la skin: {e}"))?;
+    use base64::Engine as _;
+    Ok(format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(raw)
+    ))
+}
+
+#[tauri::command]
+async fn skin_history_remove(file: String) -> Result<(), String> {
+    if file.contains("..") || file.contains('/') {
+        return Err("Archivo no válido".to_string());
+    }
+    let root = crate::skins::skinroot();
+    let _ = tokio::fs::remove_file(root.join("historia").join(&file)).await;
+    let mut v = tokio::fs::read_to_string(root.join("historia.json"))
+        .await
+        .ok()
+        .and_then(|txt| serde_json::from_str::<Vec<serde_json::Value>>(&txt).ok())
+        .unwrap_or_default();
+    v.retain(|it| it.get("file").and_then(|x| x.as_str()) != Some(file.as_str()));
+    tokio::fs::write(root.join("historia.json"), json!(v).to_string())
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn skin_history() -> Vec<crate::skins::HistoryItem> {
+    crate::skins::history().await
+}
+
+#[tauri::command]
+async fn skin_history_apply(account_id: String, file: String) -> Result<String, String> {
+    let hist = crate::skins::skinroot().join("historia");
+    if file.contains("..") || file.contains('/') {
+        return Err("Archivo no válido".to_string());
+    }
+    let path = hist.join(&file);
+    if !path.exists() {
+        return Err("Esa skin ya no está en el historial".to_string());
+    }
+    skin_apply(account_id, path.to_string_lossy().to_string()).await
+}
+
+#[tauri::command]
 async fn skin_profile(account_id: String) -> Result<Value, String> {
     let acc = crate::accounts::resolve_for_launch(Some(account_id)).await?;
     let crafty = format!(
@@ -550,12 +606,14 @@ async fn skin_apply(account_id: String, source: String) -> Result<String, String
     if !crate::skins::valid_png(&bytes) {
         return Err("Ese enlace no devuelve una skin PNG válida".to_string());
     }
+    crate::skins::record_history(&bytes).await;
     if acc.kind == "microsoft" {
         let entry =
             crate::wardrobe::add_skin_from_bytes(&bytes, format!("{}-skin", acc.name)).await?;
         crate::wardrobe::apply_saved_skin(&acc.id, &entry.id, &model).await?;
         Ok("Skin subida a tu cuenta premium: entra al juego y la verás".to_string())
     } else {
+        crate::skins::copy_for_local_skin_mods(&acc.name, &bytes).await;
         let dest = crate::skins::set_current_skin(&bytes).await?;
         Ok(format!(
             "Skin guardada como tu skin local ({}). Al pulsar Jugar se inyecta en el juego.",
@@ -915,6 +973,10 @@ fn main() {
             java_scan,
             skin_gallery,
             skin_profile,
+            skin_history,
+            skin_history_apply,
+            skin_history_remove,
+            skin_preview,
             skin_apply,
             app_info,
             reorder_instances,

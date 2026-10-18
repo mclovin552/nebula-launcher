@@ -100,17 +100,89 @@ pub fn valid_png(data: &[u8]) -> bool {
     data.len() > 12 && data.starts_with(&[0x89, b'P', b'N', b'G'])
 }
 
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+pub async fn record_history(bytes: &[u8]) {
+    paths::ensure().ok();
+    let dir = skinroot();
+    if tokio::fs::create_dir_all(dir.join("historia"))
+        .await
+        .is_err()
+    {
+        return;
+    }
+    let file = dir
+        .join("historia")
+        .join(format!("skin-{}.png", now_secs()));
+    if tokio::fs::write(&file, bytes).await.is_err() {
+        return;
+    }
+    let mut v = tokio::fs::read_to_string(dir.join("historia.json"))
+        .await
+        .ok()
+        .and_then(|txt| serde_json::from_str::<Vec<serde_json::Value>>(&txt).ok())
+        .unwrap_or_default();
+    v.insert(0, json!({"file": file.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default()}));
+    v.truncate(30);
+    let _ = tokio::fs::write(dir.join("historia.json"), json!(v).to_string()).await;
+}
+
+pub async fn copy_for_local_skin_mods(player: &str, bytes: &[u8]) {
+    let base = paths::root().join("instances");
+    if let Ok(mut d) = tokio::fs::read_dir(&base).await {
+        while let Ok(Some(en)) = d.next_entry().await {
+            let mc = en.path().join("minecraft");
+            if mc.is_dir() {
+                for sub in ["LocalSkin/skins", "CustomSkinLoader/LocalSkin/skins"] {
+                    let p = mc.join(sub);
+                    if tokio::fs::create_dir_all(&p).await.is_ok() {
+                        let _ = tokio::fs::write(p.join(format!("{player}.png")), bytes).await;
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub async fn set_current_skin(bytes: &[u8]) -> Result<PathBuf, String> {
     paths::ensure()?;
-    let dir = skinroot();
-    tokio::fs::create_dir_all(&dir)
-        .await
-        .map_err(|e| e.to_string())?;
+    record_history(bytes).await;
     let dest = current_skin_path();
     tokio::fs::write(&dest, bytes)
         .await
         .map_err(|e| format!("No se pudo guardar la skin local: {e}"))?;
     Ok(dest)
+}
+
+pub async fn history() -> Vec<HistoryItem> {
+    let f = skinroot().join("historia.json");
+    let mut out = Vec::new();
+    if let Ok(txt) = tokio::fs::read_to_string(&f).await {
+        if let Ok(v) = serde_json::from_str::<Vec<serde_json::Value>>(&txt) {
+            for it in v {
+                if let Some(name) = it.get("file").and_then(|x| x.as_str()) {
+                    if !name.is_empty() && skinroot().join("historia").join(name).exists() {
+                        out.push(HistoryItem {
+                            file: name.to_string(),
+                            preview: format!("historia/{name}"),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+#[derive(Clone, Serialize)]
+pub struct HistoryItem {
+    pub file: String,
+    pub preview: String,
 }
 
 fn uuid_to_hyphenless(u: &str) -> &str {
@@ -137,14 +209,19 @@ fn profile_payload(port: u16, uuid: &str, name: &str, slim: bool) -> String {
     .to_string()
 }
 
-fn root_payload(_port: u16) -> String {
+fn root_payload(port: u16) -> String {
+    let local = format!("http://127.0.0.1:{port}");
     json!({
+        "skinDomains": ["127.0.0.1", "localhost"],
+        "sessionServer": format!("{local}/sessionserver"),
+        "authserver": format!("{local}/authserver"),
+        "servicesHost": format!("127.0.0.1:{port}"),
         "meta": {
             "serverName": "Nebula skins locales",
             "implementationName": "Nebula local skin feed",
-            "implementationVersion": "1.0"
+            "implementationVersion": "1.1",
+            "features": {"skin": true}
         },
-        "skinDomains": ["127.0.0.1", "localhost"],
     })
     .to_string()
 }
@@ -484,23 +561,35 @@ fn png_dims(data: &[u8]) -> Option<(u32, u32)> {
 
 #[tokio::test]
 #[ignore]
-async fn crafty_works() {
-    let l = crafty_list("populares").await.unwrap();
-    println!(
-        "populares: {} items, primero: {:?}",
-        l.len(),
-        l.first().map(|i| (&i.title, &i.uuid))
-    );
-    assert!(!l.is_empty());
-    if let Some(it) = l.first() {
-        let t = crafty_texture(&it.uuid).await.unwrap();
-        println!("textura {} bytes", t.len());
-        assert!(valid_png(&t));
+async fn local_ygg_ok() {
+    let data = std::fs::read("/tmp/opencode/crafty_skin.png").expect("png de prueba");
+    set_current_skin(&data).await.unwrap();
+    let cur = skinroot().join("current_skin.png");
+    let port = spawn_server("TestPlayer".into(), cur, false).await.unwrap();
+
+    async fn get(port: u16, path: &str) -> String {
+        let mut s = tokio::net::TcpStream::connect(("127.0.0.1", port))
+            .await
+            .unwrap();
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        s.write_all(format!("GET {} HTTP/1.0\r\n\r\n", path).as_bytes())
+            .await
+            .unwrap();
+        let mut buf = Vec::new();
+        s.read_to_end(&mut buf).await.unwrap();
+        String::from_utf8_lossy(&buf).to_string()
     }
-    let n = crafty_list("newest").await.unwrap();
-    println!("newest: {}", n.len());
-    assert!(!n.is_empty());
-    let v = crafty_list("top_viewed").await.unwrap();
-    println!("vistas: {}", v.len());
-    assert!(!v.is_empty());
+
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+    let root = get(port, "/api/authlib-injector").await;
+    assert!(root.contains("sessionServer"), "root: {root}");
+    let prof = get(
+        port,
+        "/sessionserver/session/minecraft/profile/d84cfa00a54f3b33b1b1b7c86cbb7237",
+    )
+    .await;
+    assert!(prof.contains("textures"), "profile: {prof}");
+    let tex = get(port, "/current_skin.png").await;
+    assert!(tex.contains("PNG"), "png: {tex:.60}");
+    println!("servidor local OK en puerto {port}");
 }
