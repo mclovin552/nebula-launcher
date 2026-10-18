@@ -122,7 +122,11 @@ fn drain(pipe: &mut Pipe) {
     let _ = pipe.read(&mut buf);
 }
 
-fn send_activity(app_id: &str, activity_value: serde_json::Value) -> std::io::Result<()> {
+fn send_activity(
+    app_id: &str,
+    activity_value: serde_json::Value,
+    game_pid: u32,
+) -> std::io::Result<()> {
     let mut pipe = Pipe::connect()?;
 
     let hello = json!({"v": 1, "client_id": app_id}).to_string();
@@ -131,7 +135,7 @@ fn send_activity(app_id: &str, activity_value: serde_json::Value) -> std::io::Re
 
     let payload = json!({
         "cmd": "SET_ACTIVITY",
-        "args": { "pid": std::process::id(), "activity": activity_value },
+        "args": { "pid": game_pid, "activity": activity_value },
         "nonce": nonce()
     })
     .to_string();
@@ -139,7 +143,7 @@ fn send_activity(app_id: &str, activity_value: serde_json::Value) -> std::io::Re
     pipe.flush()
 }
 
-pub fn start(details: String, state: String) {
+pub fn start(details: String, state: String, game_pid: u32) {
     let id = app_id();
     if id.is_empty() {
         return;
@@ -166,7 +170,7 @@ pub fn start(details: String, state: String) {
             if DONE.load(Ordering::SeqCst) {
                 break;
             }
-            if send_activity(&id, activity.clone()).is_ok() {
+            if send_activity(&id, activity.clone(), game_pid).is_ok() {
                 connected = true;
                 break;
             }
@@ -180,7 +184,7 @@ pub fn start(details: String, state: String) {
         let mut elapsed = 0u64;
         while !DONE.load(Ordering::SeqCst) {
             std::thread::sleep(Duration::from_secs(15));
-            if send_activity(&id, activity.clone()).is_err() {
+            if send_activity(&id, activity.clone(), game_pid).is_err() {
                 break;
             }
             elapsed += 15;

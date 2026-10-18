@@ -349,6 +349,51 @@ async fn handle(mut sock: tokio::net::TcpStream, srv: Srv) -> std::io::Result<()
     Ok(())
 }
 
+pub async fn selfcheck(port: u16, uuid: &str, name: &str) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let root = format!("http://127.0.0.1:{port}/api/authlib-injector");
+    let r = client
+        .get(&root)
+        .header("User-Agent", "Nebula")
+        .send()
+        .await
+        .map_err(|e| format!("[Nebula] El feed local de skins no responde ({e}))"))?;
+    if !r.status().is_success() {
+        return Err(format!(
+            "[Nebula] El feed local respondió HTTP {} en el root",
+            r.status()
+        ));
+    }
+    let clean: String = uuid.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
+    let prof = format!("http://127.0.0.1:{port}/sessionserver/session/minecraft/profile/{clean}");
+    let pr = client
+        .get(&prof)
+        .header("User-Agent", "Nebula")
+        .send()
+        .await
+        .map_err(|e| format!("[Nebula] El perfil local de skins no responde ({e}))"))?;
+    if !pr.status().is_success() {
+        return Err(format!(
+            "[Nebula] El perfil de skins local respondió HTTP {}",
+            pr.status()
+        ));
+    }
+    let png = client
+        .get(format!("http://127.0.0.1:{port}/current_skin.png"))
+        .header("User-Agent", "Nebula")
+        .send()
+        .await
+        .map_err(|e| format!("[Nebula] La PNG local no responde ({e}))"))?;
+    if !png.status().is_success() {
+        return Err(format!(
+            "[Nebula] La skin PNG local respondió HTTP {}",
+            png.status()
+        ));
+    }
+    let _ = name;
+    Ok(())
+}
+
 pub async fn spawn_server(name: String, skin: PathBuf, slim: bool) -> Result<u16, String> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await

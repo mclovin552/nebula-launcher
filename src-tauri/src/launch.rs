@@ -288,10 +288,13 @@ pub async fn run(
                 .await
                 .map_err(|e| format!("No se pudo preparar authlib-injector: {e}"))?;
             match crate::skins::spawn_server(account.name.clone(), cur, false).await {
-                Ok(port) => Some(format!(
-                    "{}=http://127.0.0.1:{port}/api/authlib-injector",
-                    jar.to_string_lossy()
-                )),
+                Ok(port) => {
+                    crate::skins::selfcheck(port, &account.uuid, &account.name).await?;
+                    Some(format!(
+                        "{}=http://127.0.0.1:{port}/api/authlib-injector",
+                        jar.to_string_lossy()
+                    ))
+                }
                 Err(e) => return Err(format!("No se pudo iniciar el feed local de skins: {e}")),
             }
         } else {
@@ -451,6 +454,7 @@ pub async fn run(
     crate::discord::start(
         format!("Jugando a {}", inst.name),
         format!("Minecraft {} · Nebula Launcher", inst.mc_version),
+        pid,
     );
     inst.last_played = Some(now_secs());
     let _ = instances::save(&inst);

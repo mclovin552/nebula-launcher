@@ -6,7 +6,6 @@ use crate::util::{now_millis, Ctx};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::PathBuf;
-use tauri::AppHandle;
 
 const PROFILE: &str = "https://api.minecraftservices.com/minecraft";
 
@@ -244,7 +243,7 @@ fn valid_player(p: &str) -> bool {
         && p.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-async fn ensure_csl(_app: AppHandle, instance_id: &str) -> Result<(), String> {
+pub async fn ensure_csl(instance_id: &str) -> Result<(), String> {
     let inst = crate::instances::get(instance_id)?;
     if inst.loader == "vanilla" {
         return Err(
@@ -306,19 +305,14 @@ fn write_csl_config(game: &std::path::Path) -> Result<(), String> {
     .ctx()
 }
 
-pub async fn local_skin(
-    app: AppHandle,
-    instance_id: &str,
-    player: &str,
-    skin_id: &str,
-) -> Result<(), String> {
+pub async fn local_skin(instance_id: &str, player: &str, skin_id: &str) -> Result<(), String> {
     if !valid_player(player) {
         return Err("Nombre de jugador no válido".to_string());
     }
     let bytes = tokio::fs::read(skin_path(skin_id))
         .await
         .map_err(|_| "Esa skin ya no está en el armario".to_string())?;
-    ensure_csl(app, instance_id).await?;
+    ensure_csl(instance_id).await?;
     let dest = crate::instances::game_dir(instance_id)
         .join("CustomSkinLoader")
         .join("LocalSkin")
@@ -327,12 +321,7 @@ pub async fn local_skin(
     std::fs::write(dest.join(format!("{player}.png")), bytes).ctx()
 }
 
-pub async fn local_cape(
-    app: AppHandle,
-    instance_id: &str,
-    player: &str,
-    source: &str,
-) -> Result<(), String> {
+pub async fn local_cape(instance_id: &str, player: &str, source: &str) -> Result<(), String> {
     if !valid_player(player) {
         return Err("Nombre de jugador no válido".to_string());
     }
@@ -348,7 +337,7 @@ pub async fn local_cape(
     if bytes.len() < 8 || bytes[..8] != PNG_MAGIC {
         return Err("La capa debe ser un archivo PNG".to_string());
     }
-    ensure_csl(app, instance_id).await?;
+    ensure_csl(instance_id).await?;
     let dest = crate::instances::game_dir(instance_id)
         .join("CustomSkinLoader")
         .join("LocalSkin")

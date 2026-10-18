@@ -359,22 +359,20 @@ async fn cape_set(account_id: String, cape_id: Option<String>) -> Result<(), Str
 
 #[tauri::command]
 async fn offline_skin_apply(
-    app: AppHandle,
     instance_id: String,
     player: String,
     skin_id: String,
 ) -> Result<(), String> {
-    wardrobe::local_skin(app, &instance_id, &player, &skin_id).await
+    wardrobe::local_skin(&instance_id, &player, &skin_id).await
 }
 
 #[tauri::command]
 async fn offline_cape_apply(
-    app: AppHandle,
     instance_id: String,
     player: String,
     path: String,
 ) -> Result<(), String> {
-    wardrobe::local_cape(app, &instance_id, &player, &path).await
+    wardrobe::local_cape(&instance_id, &player, &path).await
 }
 
 #[tauri::command]
