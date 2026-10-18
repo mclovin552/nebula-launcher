@@ -500,18 +500,30 @@ async fn skin_gallery(query: String, mode: String, page: i64) -> Result<Vec<Valu
             .collect());
     }
     let items = crate::skins::skindex_search(&query, page).await?;
-    Ok(items
-        .into_iter()
-        .map(|it| {
-            json!({
-                "title": it.title,
-                "preview": it.preview,
-                "full": it.full,
-                "model": "classic",
-                "crafty": false,
+    if !items.is_empty() {
+        return Ok(items
+            .into_iter()
+            .map(|it| {
+                json!({
+                    "title": it.title,
+                    "preview": it.preview,
+                    "full": it.full,
+                    "model": "classic",
+                    "crafty": false,
+                })
             })
-        })
-        .collect())
+            .collect());
+    }
+    if let Some(ely) = crate::skins::ely_skin(&query).await {
+        return Ok(vec![json!({
+            "title": format!("{} — skin pública de Ely.by", ely.0),
+            "preview": ely.1,
+            "full": ely.1,
+            "model": "classic",
+            "crafty": false,
+        })]);
+    }
+    Ok(Vec::new())
 }
 
 #[tauri::command]

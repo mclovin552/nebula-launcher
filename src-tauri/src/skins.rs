@@ -593,3 +593,24 @@ async fn local_ygg_ok() {
     assert!(tex.contains("PNG"), "png: {tex:.60}");
     println!("servidor local OK en puerto {port}");
 }
+
+pub async fn ely_skin(nick: &str) -> Option<(String, String)> {
+    let nick = nick.trim();
+    if nick.len() < 3
+        || nick.len() > 20
+        || !nick
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
+        return None;
+    }
+    let url = format!(
+        "https://skinsystem.ely.by/skins/{}.png",
+        crate::util::url_param(nick)
+    );
+    let bytes = crate::http::get_bytes(&url).await.ok()?;
+    if !valid_png(&bytes) {
+        return None;
+    }
+    Some((nick.to_string(), url))
+}
